@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}list_tables{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-3">
+        <!-- Table Name Search Field (common) -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="search-table-name">Table Name:</label>
+                <input type="text" class="form-control" id="search-table-name" placeholder="Search table name..." oninput="filterTablesByName()">
+            </div>
+        </div>
+
+        {% set search_sections = ["lot", "wafer", "die", "dut", "d", "tc", "task", "date", "file type"] %}
+        {% for section in search_sections %}
+        <div class="col-md-1">
+            <div class="form-group">
+                <label for="search-section-{{ loop.index }}">{{ section }}:</label>
+                <input type="text" class="form-control" id="search-section-{{ loop.index }}" placeholder="Search..." oninput="tableSelected()">
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Simplified Drag and Drop File Upload Area -->
+    <div class="border p-3 mb-4">
+        <h3>Upload Files:</h3>
+        <form id="uploadForm" action="/upload-file" method="post" enctype="multipart/form-data" class="mb-3">
+            <input type="hidden" name="db_name" value="{{ database }}"> <!-- Assuming `database` is the variable holding the current database name -->
+            <div class="form-group">
+                <input type="file" name="files[]" id="files" multiple accept=".csv,.txt" style="display: none;">
+                <div id="drop_area" class="drag-drop-area">
+                    <p>Drag and drop files here</p>
+                    <p>or click to select files</p>
+                </div>
+            </div>
+            <div id="file_list" class="file-list">
+                <p>No files selected</p>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>             
+    </div>
+
+    <div class="mt-3 mb-3">
+        <p>Number of tables: {{ tables|length }}</p>
+        <button class="btn btn-primary" id="selectAll">Select All</button>
+        <button class="btn btn-secondary" id="deselectAll">Deselect All</button>
+        <button class="btn btn-danger" onclick="deleteSelectedRecords('{{ database }}')">Delete Selected</button>
+        <button class="btn btn-warning" id="moveSelected">Move Selected</button>
+        <button class="btn btn-info" id="copySelected">Copy Selected</button>
+        <button class="btn btn-secondary" id="plotSelected">Plot Selected</button>
+    </div>
+
+    <ul id="table-list" class="list-group no-bullets">
+    {% for table in tables %}
+        <li data-table-name="{{ table['table_name'] }}" class="table-item">
+            <input type="checkbox" id="select-table-{{ loop.index }}" class="table-checkbox" data-table-name="{{ table['table_name'] }}">
+
+            <!-- Common buttons -->
+            <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('view_table', database=database, table_name=table['table_name']) }}'">View</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ database }}', '{{ table['table_name'] }}')">Delete This Table</button>
+
+            <!-- Unified editable span for renaming -->
+            <span contenteditable="true" id="table-name-{{ loop.index }}" onblur="renameTable('{{ database }}', '{{ table['table_name'] }}', this.innerText)">{{ table['table_name'] }}</span>
+        </li>
+    {% endfor %}
+    </ul>
+</div>
+
+<!-- Scripts for drag-and-drop functionality, file list management -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropArea = document.getElementById('drop_area');
+        const fileInput = document.getElementById('files');
+        const uploadForm = document.getElementById('uploadForm');
+        let accumulatedFiles = []; // Track selected files for submission
+    
+        function setupEventListeners() {
+            dropArea.addEventListener('click', function() {
+                fileInput.click(); // Trigger file input dialog on drop area click
+            });
+    
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files); // Add files selected through input to the list
+            });
+    
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false); // Handle drag events
+            });
+    
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false); // Highlight drop area
+            });
+    
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false); // Unhighlight drop area
+            });
+    
+            dropArea.addEventListener('drop', function(e) {
+                handleFiles(e.dataTransfer.files); // Handle files dropped into the area
+            });
+    
+            uploadForm.addEventListener('submit', handleSubmit); // Handle form submission
+        }
+    
+        function handleFiles(files) {
+            accumulatedFiles.push(...files); // Accumulate files from input and drop
+            updateFileList();
+        }
+    
+        function updateFileList() {
+            const fileListElement = document.getElementById('file_list');
+            fileListElement.innerHTML = accumulatedFiles.map((file, index) => `<li>${index + 1}: ${file.name}</li>`).join('') || '<p>No files selected</p>';
+        }
+    
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    
+        async function handleSubmit(e) {
+            e.preventDefault(); // Prevent the default form submission behavior
+    
+            // Use FormData associated with the form but append additional files from drag-and-drop.
+            const formData = new FormData(uploadForm);
+            accumulatedFiles.forEach(file => {
+                formData.append('files[]', file); // Append each file to FormData
+            });
+    
+            // Submit the form data with the fetch API
+            try {
+                const response = await fetch(uploadForm.action, {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const data = await response.json();
+                console.log('Success:', data);
+                // Reset the accumulated files and update the UI accordingly
+                accumulatedFiles = [];
+                updateFileList();
+                alert('Files uploaded successfully.');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to upload files.');
+            }
+        }
+    
+        setupEventListeners();
+    });
+</script>
+    
+
+<script>
+    document.getElementById('plotSelected').addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+        let tableNames = [];
+        
+        checkboxes.forEach(function(checkbox) {
+            tableNames.push(checkbox.getAttribute('data-table-name'));
+        });
+        
+        if (tableNames.length > 0) {
+            // Generate the base URL without the table_names parameter, using a placeholder if necessary
+            let baseUrl = "{{ url_for('view_plot', database=database, plot_function=plot_function, table_name='PLACEHOLDER') }}";
+            // Replace the placeholder with the actual table_names joined by commas
+            baseUrl = baseUrl.replace('PLACEHOLDER', tableNames.join(','));
+            
+            window.location.href = baseUrl;
+        } else {
+            alert('Please select at least one table to plot.');
+        }
+    });
+
+    function fetchDatabases() {
+        return fetch('/getDatabases')
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Failed to fetch databases.');
+            })
+            .catch(error => alert(error.message));
+    }
+
+    async function selectDatabase() {
+        const databases = await fetchDatabases();
+        const selectionString = databases.map((db, index) => `${index + 1}. ${db}`).join('\n');
+        const choice = prompt(`Select a database by entering its number:\n${selectionString}`);
+        return databases[parseInt(choice) - 1];
+    }
+
+    async function moveSelectedTables(sourceDb) {
+        const targetDb = await selectDatabase();
+        if (targetDb) {
+            const tableNames = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                    .map(checkbox => checkbox.getAttribute('data-table-name'));
+            if (tableNames.length > 0) {
+                fetch('/moveSelectedTables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sourceDb, targetDb, tableNames })
+                })
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Failed to move selected tables.');
+                })
+                .then(data => alert(data.message))
+                .catch(error => alert(error.message));
+            } else {
+                alert('Please select at least one table to move.');
+            }
+        }
+    }
+
+    async function copySelectedTables(sourceDb) {
+        const targetDb = await selectDatabase();
+        if (targetDb) {
+            const tableNames = Array.from(document.querySelectorAll('.table-checkbox:checked'))
+                                    .map(checkbox => checkbox.getAttribute('data-table-name'));
+            if (tableNames.length > 0) {
+                fetch('/copySelectedTables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sourceDb, targetDb, tableNames })
+                })
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Failed to copy selected tables.');
+                })
+                .then(data => alert(data.message))
+                .catch(error => alert(error.message));
+            } else {
+                alert('Please select at least one table to copy.');
+            }
+        }
+    }
+
+    // Bind moveSelectedTables and copySelectedTables functions to buttons
+    document.getElementById('moveSelected').addEventListener('click', function() {
+        moveSelectedTables('{{ database }}');
+    });
+
+    document.getElementById('copySelected').addEventListener('click', function() {
+        copySelectedTables('{{ database }}');
+    });
+</script>
+
+<script>
+    // Script to handle user and database selection logic remains unchanged
+    
+    // Adjusted drag-and-drop and file handling logic, including form submission
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup for user and database selection remains unchanged
+    
+        var dropArea = document.getElementById('drop_area');
+        var fileInput = document.getElementById('files');
+        var uploadForm = document.getElementById('uploadForm');
+        var accumulatedFiles = [];
+    
+        function setupDragAndDrop() {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+    
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+    
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+    
+            dropArea.addEventListener('drop', function(e) {
+                var files = e.dataTransfer.files;
+                handleFiles(files);
+            });
+    
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+    
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitFiles();
+            });
+        }
+    
+        function handleFiles(files) {
+            accumulatedFiles = accumulatedFiles.concat(Array.from(files));
+            updateFileList();
+        }
+    
+        function updateFileList() {
+            var fileListElement = document.getElementById('file_list');
+            fileListElement.innerHTML = '';
+            if (accumulatedFiles.length > 0) {
+                var list = document.createElement('ul');
+                accumulatedFiles.forEach(function(file, index) {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = `${index + 1}: ${file.name}`;
+                    list.appendChild(listItem);
+                });
+                fileListElement.appendChild(list);
+            } else {
+                fileListElement.innerHTML = '<p>No files selected</p>';
+            }
+        }
+    
+        function submitFiles() {
+            var formData = new FormData(uploadForm);
+            accumulatedFiles.forEach(function(file) {
+                formData.append('files[]', file);
+            });
+    
+            // Submit formData to your server
+            fetch('/upload-file', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                // Handle success response
+                accumulatedFiles = []; // Reset accumulated files after successful upload
+                updateFileList(); // Refresh the file list display
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    
+        setupDragAndDrop();
+    });
+    
+    // Utility functions: preventDefaults, highlight, unhighlight remain unchanged
+</script>
+
+<!-- Styles for the drag-drop area and other page-specific styling -->
+<style>
+    .drag-drop-area {
+        border: 2px dashed #007bff;
+        border-radius: 5px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    .drag-drop-area:hover {
+        background-color: #f8f9fa;
+    }
+    .file-list ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    .file-list p {
+        margin-top: 10px;
+    }
+    .no-bullets {
+        list-style-type: none; /* Removes the bullets */
+        padding-left: 0; /* Removes the padding which is also part of the default list style */
+    }
+</style>
+
+{% endblock %}

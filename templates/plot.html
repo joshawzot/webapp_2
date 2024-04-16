@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}plot{% endblock %}
+
+{% block content %}
+
+<button class="btn btn-success" id="downloadPPTX">Download Images as PPTX</button>
+
+<div class="mb-4">
+    {% for plot in plot_data %}
+        <div class="plot-container mb-3">
+            <img src="data:image/png;base64,{{ plot }}" alt="Generated Plot" class="img-fluid">
+            <button class="btn btn-primary mt-2" onclick="downloadPlot('{{ plot }}', {{ loop.index }})">Download Plot</button>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Link to external JavaScript libraries and your scripts.js file -->
+
+<script>
+    document.getElementById('downloadPPTX').addEventListener('click', function() {
+        var plots = Array.from(document.querySelectorAll('.plot-container img')).map(function(img) {
+            return img.src; // This is the Base64 encoded image
+        });
+    
+        fetch('{{ url_for('download_pptx') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({plots: plots}),
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            // Create a link to download the blob
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'Downloaded_Presentation.pptx';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        });
+    });
+    </script>
+
+{% endblock %}

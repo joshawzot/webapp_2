@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}table_text{% endblock %}
+
+{% block content %}
+
+<pre class="bg-light p-3 rounded border" contenteditable="true" id="txt-content">
+    {{ content }}
+</pre>
+<button onclick="saveContent('{{ database }}', '{{ table_name }}')">Save</button>
+
+<!-- Link to external JavaScript libraries and your scripts.js file -->
+
+{% endblock %}

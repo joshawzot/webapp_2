@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Select Database{% endblock %}
+
+{% block content %}
+<!-- New Section for Creating a New Database -->
+<!--
+<div class="container mt-3 mb-3">
+    <a href="/get-pptx-as-pdf" target="_blank">View Tutorial PDF</a>
+</div>
+-->
+
+<div class="container">
+    <a href="/all-databases" class="btn btn-info mb-3">Manage Databases</a>
+
+    <!-- Added a div with a border and padding class -->
+    <div class="border p-3 mb-4">
+        <h3>Data Analysis:</h3>
+        <form action="/data-analysis" method="post" class="mb-3">
+            <div class="form-group">
+                <label for="databaseSelect">Choose a Database:</label>
+                <select name="database" id="databaseSelect" class="form-control">
+                    {% for db in databases %}
+                    <option value="{{ db }}">{{ db }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="plotFunctionSelect">Select a Plot Function:</label>
+                <select name="plot_function" id="plotFunctionSelect" class="form-control" onchange="updatePlotFunctionDescription()">
+                    <!-- <option value="generate_plot_checkerboard">generate_plot_checkerboard</option> -->
+                    {#<option value="generate_plot_endurance">generate_plot_endurance</option>
+                    <!-- <option value="generate_plot_ttc">generate_plot_ttc</option> -->
+                    <!-- <option value="generate_plot_percentage_bars">generate_plot_percentage_bars</option> -->
+                    <!-- <option value="generate_plot_vertical_xn">generate_plot_vertical_xn</option> -->
+                    <!-- <option value="generate_plot_horizontal_boxplotsigma_xnxm">generate_plot_horizontal_boxplotsigma_xnxm</option> -->
+                    <!-- <option value="generate_plot_horizontal_sigma_xnxm">generate_plot_horizontal_sigma_xnxm</option> -->
+                    <!-- <option value="generate_plot_forming_voltage_map">generate_plot_forming_voltage_map</option> -->
+                    <option value="generate_plot">generate_plot</option>
+                    <option value="generate_plot_64x64">generate_plot_64x64</option>
+                    {#<option value="generate_plot_VCR">generate_plot_VCR</option>
+                    <option value="generate_plot_TCR_separate">generate_plot_TCR_VCR</option>
+                    <option value="generate_plot_TCR">generate_plot_TCR</option>#}
+                    <option value="generate_plot_cycling">generate_plot_cycling</option>
+                </select>
+            </div>
+        
+            <!-- Dynamic Text Box for plot function description -->
+            <div class="form-group">
+                <p id="plotFunctionDescription">
+                </p>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+
+    <!-- Manual Upload Files Section -->
+    <div class="border p-3 mb-4">
+        <h3>Manual Upload Files:</h3>
+        <form action="/upload-file" method="post" enctype="multipart/form-data" class="mb-3" onsubmit="return validateForm()">
+            <div class="form-group">
+                <label for="db_name">Select a database to upload to:</label>
+                <select name="db_name" id="db_name" class="form-control">
+                    {% for db in databases %}
+                    <option value="{{ db }}">{{ db }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="files">Select local files to upload:</label>
+                <input type="file" name="files[]" id="files" multiple accept=".csv,.txt" class="form-control-file">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+
+    <script>
+    // Function to update the plot function description based on selection
+    function updatePlotFunctionDescription() {
+        var plotFunctionSelect = document.getElementById('plotFunctionSelect');
+        var plotFunctionDescription = document.getElementById('plotFunctionDescription');
+
+        var descriptions = {
+            "generate_plot": ".mat, 64x64, plot_multiple, 16 level, filename has to start with something like '2023_12_19_114326' or '2023-12-19-114326', use date and time for ordering",
+            "generate_plot_64x64": ".mat, 64x64, plot_multiple, 1 level, filename has to start with something like '2023-12-09 or '2023_12_09', use date for grouping, if want to combine 2 dates need to change the date of the filename manually, for same the date require more than 2 conductance levels to plot correctly",
+            "generate_plot_cycling": ".mat, 64x64, 1 level, plot_multiple, Transformed CDF of 4 levels, filename has to start with something like '2024_01_21_053128'",
+            "generate_plot_VCR": ".mat 64x64x8 plot_multiple, make sure the filename complies, ex '1_g_allvoltage_25c_mat'. Each plot is 16 levels x 8 settings, VCR",
+            "generate_plot_TCR": ".mat 64x64x8 plot_multiple, make sure the filename complies, ex '1_g_allvoltage_25c_mat'. Each plot of 16 levels x n files, TCR",
+            "generate_plot_TCR_separate": ".mat 64x64x8 plot_multiple, make sure the filename complies, ex '1_g_allvoltage_25c_mat'. Each plot of 16 levels x n files, TCR",
+            "generate_plot_checkerboard": "plot_individual",
+            "generate_plot_endurance": "plot_individual",
+            "generate_plot_ttc": "plot_individual",
+            "generate_plot_percentage_bars": "plot_individual",
+            "generate_plot_vertical_xn": "plot_individual",
+            "generate_plot_horizontal_boxplotsigma_xn": "plot_individual",
+            "generate_plot_horizontal_boxplotsigma_xnxm": "plot_multiple",
+            "generate_plot_horizontal_sigma_xnxm": "plot_multiple",
+            "generate_plot_forming_voltage_map": "plot_multiple",
+        };
+
+        // Update the paragraph with the description
+        plotFunctionDescription.textContent = descriptions[plotFunctionSelect.value] || "No description available for this plot function.";
+    }
+
+    // Call updatePlotFunctionDescription when the page loads
+    window.onload = function() {
+        updatePlotFunctionDescription();
+    };
+
+    function validateForm() {
+        var dbSelect = document.getElementById('db_name');
+        var newDbName = document.getElementById('new_db_name').value;
+        if (dbSelect.value === 'new_database' && !newDbName.trim()) {
+            alert('Please enter a name for the new database.');
+            return false;
+        }
+        return true;
+    }
+    </script>
+{% endblock %}

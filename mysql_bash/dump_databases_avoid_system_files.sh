@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# MySQL credentials
+HOST='webapp.cdecmst6qwog.us-east-2.rds.amazonaws.com'
+USER='admin'
+PASSWORD='Aa11720151015'
+# Temporary file to store the database list
+DB_LIST='db_list.txt'
+
+# Command to list all databases and exclude system databases
+mysql -h "$HOST" -u "$USER" -p"$PASSWORD" -e "SHOW DATABASES;" | grep -Ev "(Database|information_schema|performance_schema|mysql|sys)" > "$DB_LIST"
+
+# Loop through each database and dump it
+while read DB; do
+    mysqldump -h "$HOST" -P 3306 -u "$USER" -p"$PASSWORD" --databases "$DB" >> all_databases_backup.sql
+done < "$DB_LIST"
+
+# Clean up
+rm "$DB_LIST"
+
+#make a bash executable: chmod +x scriptname.sh
+#bash dump_databases_avoid_system_files.sh

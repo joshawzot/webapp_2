@@ -1,0 +1,59 @@
+"{% extends "base.html" %}
+
+{% block title %}Select Database{% endblock %}
+
+{% block content %}
+<div class="container">
+    <a href="/all-databases" class="btn btn-info mb-3">Manage Databases</a>
+
+    <!-- Added a div with a border and padding class -->
+    <div class="border p-3 mb-4">
+        <h3>Data Analysis:</h3>
+        <form action="/data-analysis" method="post" class="mb-3">
+            <div class="form-group">
+                <label for="databaseSelect">Choose a Database:</label>
+                <select name="database" id="databaseSelect" class="form-control">
+                    {% for db in databases %}
+                    <option value="{{ db }}">{{ db }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Removed "Select a Plot Function:" Dropdown -->
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+
+    <!-- Manual Upload Files Section -->
+    <div class="border p-3 mb-4">
+        <h3>Manual Upload Files:</h3>
+        <form action="/upload-file" method="post" enctype="multipart/form-data" class="mb-3" onsubmit="return validateForm()">
+            <div class="form-group">
+                <label for="db_name">Select a database to upload to:</label>
+                <select name="db_name" id="db_name" class="form-control">
+                    {% for db in databases %}
+                    <option value="{{ db }}">{{ db }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="files">Select local files to upload:</label>
+                <input type="file" name="files[]" id="files" multiple accept=".csv,.txt" class="form-control-file">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+
+    <script>
+    function validateForm() {
+        var dbSelect = document.getElementById('db_name');
+        var newDbName = document.getElementById('new_db_name').value;
+        if (dbSelect.value === 'new_database' && !newDbName.trim()) {
+            alert('Please enter a name for the new database.');
+            return false;
+        }
+        return true;
+    }
+    </script>
+{% endblock %}

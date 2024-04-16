@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container">
+    <h3>Please fill in all required fields</h3>
+    <!-- Update the action URL with the correct path -->
+    <form action="/view-plot/{{ database }}/{{ table_name }}/{{ plot_function }}" method="POST">
+        <div class="form-group">
+            <label for="selected_groups">selected_groups:</label>
+            <input type="text" class="form-control" name="selected_groups" id="selected_groups" placeholder="Enter numbers separated by commas" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
+
+{% endblock %}
+
+

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}table{% endblock %}
+
+{% block content %}
+
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>#</th> <!-- Placeholder for row numbers, not counting as a column itself -->
+                {% for column in column_names %}
+                    <th>{{ loop.index }}</th> <!-- Prefix column names with numbers -->
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in results %}
+                <tr>
+                    <td>{{ loop.index }}</td> <!-- Display the row number -->
+                    {% for cell in row %}
+                        <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

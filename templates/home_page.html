@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Select Database{% endblock %}
+
+{% block content %}
+<div class="container">
+    <a href="/all-databases" class="btn btn-info mb-3">Create New Database</a>
+
+    <div class="border p-3 mb-4">
+        <h3>Data Analysis:</h3>
+        <form action="/data-analysis" method="post" class="mb-3">
+            <div class="form-group">
+                <label for="userSelect">User:</label>
+                <select name="user" id="userSelect" class="form-control">
+                    {% for user in users %}
+                    <option value="{{ user }}">{{ user }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="databaseSelect">Database:</label>
+                <select name="database" id="databaseSelect" class="form-control">
+                    <!-- Options will be dynamically updated -->
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+
+    <!-- Manual Upload Files Section -->
+    <!--
+    <div class="border p-3 mb-4">
+        <h3>Upload Files:</h3>
+        <form id="uploadForm" action="/upload-file" method="post" enctype="multipart/form-data" class="mb-3">
+            <div class="form-group">
+                <label for="userSelectUpload">User:</label>
+                <select name="user" id="userSelectUpload" class="form-control">
+                    {% for user in users %}
+                    <option value="{{ user }}">{{ user }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="db_name">Database:</label>
+                <select name="db_name" id="db_name" class="form-control">
+                    <!- - Options will be dynamically updated - ->
+                </select>
+            </div>
+            <div class="form-group">
+                <input type="file" name="files[]" id="files" multiple accept=".csv,.txt" style="display: none;">
+                <div id="drop_area" class="drag-drop-area">
+                    <p>Drag and drop files here</p>
+                    <p>or click to select files</p>
+                </div>
+            </div>
+            <div id="file_list" class="file-list">
+                <p>No files selected</p>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>-->
+</div>
+
+<script>
+function validateForm() {
+    var dbSelect = document.getElementById('db_name');
+    // Example validation logic here
+    return true; // Return false to prevent form submission
+}
+
+var databases = {{ databases|tojson|safe }};
+var userDatabaseMap = {};
+
+databases.forEach(function(db) {
+    var parts = db.split('_');
+    var user = parts[0];
+    var dbName = parts.slice(1).join('_');
+    if (!userDatabaseMap[user]) {
+        userDatabaseMap[user] = [];
+    }
+    userDatabaseMap[user].push(dbName);
+});
+
+function populateUserSelect(selectId) {
+    var userSelect = document.getElementById(selectId);
+    userSelect.innerHTML = ''; // Clear existing options
+    Object.keys(userDatabaseMap).forEach(function(user) {
+        var option = new Option(user, user);
+        userSelect.add(option);
+    });
+}
+
+function updateDatabaseSelect(section) {
+    var userSelectId = section === 'upload' ? 'userSelectUpload' : 'userSelect';
+    var databaseSelectId = section === 'upload' ? 'db_name' : 'databaseSelect';
+    var userSelect = document.getElementById(userSelectId);
+    var databaseSelect = document.getElementById(databaseSelectId);
+    var selectedUser = userSelect.value;
+
+    databaseSelect.innerHTML = ''; // Clear existing options
+    if(userDatabaseMap[selectedUser]) {
+        userDatabaseMap[selectedUser].forEach(function(dbName) {
+            var fullDbName = selectedUser + '_' + dbName;
+            var option = new Option(dbName, fullDbName);
+            databaseSelect.add(option);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    populateUserSelect('userSelect');
+    populateUserSelect('userSelectUpload'); // Ensure this is called for the upload section
+    updateDatabaseSelect('analysis');
+    updateDatabaseSelect('upload'); // Make sure to update the upload section on load
+});
+
+document.getElementById('userSelect').addEventListener('change', function() { updateDatabaseSelect('analysis'); });
+document.getElementById('userSelectUpload').addEventListener('change', function() { updateDatabaseSelect('upload'); }); // Add this for the upload section
+var accumulatedFiles = [];
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // Prevent the default form submission
+
+    var formData = new FormData(this);
+    accumulatedFiles.forEach(function(file) {
+        formData.append('files[]', file); // Append each file to the FormData object
+    });
+
+    // Example of sending the FormData with Fetch API (adjust URL as needed)
+    fetch('/upload-file', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Success:', data);
+        clearFileList(); // Clear and refresh file list on success
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+    });
+});
+
+function handleFiles(files) {
+    accumulatedFiles = accumulatedFiles.concat(Array.from(files));
+    updateFileList(accumulatedFiles);
+}
+
+function updateFileList(files) {
+    var fileListElement = document.getElementById('file_list');
+    fileListElement.innerHTML = '';
+    if (files.length > 0) {
+        var list = document.createElement('ul');
+        files.forEach(function(file) {
+            var listItem = document.createElement('li');
+            listItem.textContent = file.name;
+            list.appendChild(listItem);
+        });
+        fileListElement.appendChild(list);
+        fileListElement.appendChild(document.createElement('p')).textContent = `Total files selected: ${files.length}`;
+    } else {
+        fileListElement.innerHTML = '<p>No files selected</p>';
+    }
+}
+
+function clearFileList() {
+    accumulatedFiles = [];
+    updateFileList(accumulatedFiles);
+}
+
+var dropArea = document.getElementById('drop_area');
+var fileInput = document.getElementById('files');
+
+dropArea.addEventListener('click', function() {
+    fileInput.click();
+});
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropArea.classList.add('highlight');
+}
+
+function unhighlight(e) {
+    dropArea.classList.remove('highlight');
+}
+
+dropArea.addEventListener('drop', function(e) {
+    var dt = e.dataTransfer;
+    var files = dt.files;
+
+    handleFiles(files);
+});
+
+fileInput.addEventListener('change', function() {
+    handleFiles(this.files);
+});
+</script>
+
+<style>
+.drag-drop-area {
+    border: 2px dashed #007bff;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+}
+.drag-drop-area:hover {
+    background-color: #f8f9fa;
+}
+.file-list ul {
+    list-style-type: none;
+    padding: 0;
+}
+.file-list p {
+    margin-top: 10px;
+}
+</style>
+
+{% endblock %}
