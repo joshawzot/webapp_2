@@ -385,6 +385,41 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
     #data_np.shape[1] means columns   #data_np.shape[0] means rows
     return groups, groups_stats, data_np.shape[1], num_of_groups
 
+import itertools
+
+def find_min_average_overlap(all_ppm_overlaps):
+    print("AAAAA:", all_ppm_overlaps)
+    min_avg_overlap = float('inf')
+    best_groups = []
+
+    # Get all unique group indices from the keys of the overlap dictionary
+    group_indices = set([key[0] for key in all_ppm_overlaps.keys()] + [key[1] for key in all_ppm_overlaps.keys()])
+
+    # Generate all combinations of four distinct groups
+    group_combinations = itertools.combinations(sorted(group_indices), 4)
+
+    # Evaluate each combination of four groups
+    for combination in group_combinations:
+        # Get all sequential pairs from the current combination of four groups
+        pairs = [(combination[i], combination[i + 1]) for i in range(len(combination) - 1)]
+        overlap_values = []
+
+        # Calculate average overlap for the sequential pairs within the combination
+        for pair in pairs:
+            if pair in all_ppm_overlaps:
+                overlap_values.append(all_ppm_overlaps[pair])
+            elif (pair[1], pair[0]) in all_ppm_overlaps:  # Check both directions
+                overlap_values.append(all_ppm_overlaps[(pair[1], pair[0])])
+
+        # Only calculate average if all pairs have values
+        if len(overlap_values) == len(pairs):
+            avg_overlap = sum(overlap_values) / len(overlap_values)
+            if avg_overlap < min_avg_overlap:
+                min_avg_overlap = avg_overlap
+                best_groups = combination
+
+    return best_groups, min_avg_overlap
+
 def get_group_data_2(table_name, selected_groups, database_name):
     # Establish a connection to the database
     connection = create_connection(database_name)
@@ -785,7 +820,6 @@ def get_column_widths(table_data):
     
     return column_widths
 
-
 def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups, figsize=(12, 16)):
     # Unpack data_matrix_size into a and b
     a, b = data_matrix_size
@@ -827,14 +861,14 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
 
         average_count = sum(valid_counts) / len(valid_counts) if valid_counts else 0
         average_count2 = sum(valid_counts2) / len(valid_counts2) if valid_counts2 else 0
-        row += [f"{average_count:.2f}"]
-        row2 += [f"{average_count2:.2f}%"]
+        row += [f"{average_count:.2f}"] if valid_counts else ["0"]
+        row2 += [f"{average_count2:.2f}%"] if valid_counts2 else ["0%"]
         table_data.append(row)
         table_data2.append(row2)
 
     # Add average row for each table with "-" in the last column
-    avg_row = ["Col Avg"] + [f"{total / num_group_pairs:.2f}" for total in col_totals[:-1]] + ["-"]
-    avg_row2 = ["Col Avg"] + [f"{total / num_group_pairs:.2f}%" for total in col_totals2[:-1]] + ["-"]
+    avg_row = ["Col Avg"] + [f"{total / num_group_pairs:.2f}" if num_group_pairs > 0 else "-" for total in col_totals[:-1]] + ["-"]
+    avg_row2 = ["Col Avg"] + [f"{total / num_group_pairs:.2f}%" if num_group_pairs > 0 else "-" for total in col_totals2[:-1]] + ["-"]
     table_data.append(avg_row)
     table_data2.append(avg_row2)
 
@@ -1139,7 +1173,7 @@ def plot_distributions(fit_params):
 def calculate_overlap(group_data, selected_groups, sub_array_size):
     c, d = sub_array_size
     overlaps = []
-    # Create a mapping of selected group indices to their corresponding data in group_data
+    # Create a mapping of selected group indices to their corresponding data in groups
     group_mapping = {idx: data for idx, data in zip(selected_groups, group_data)}
 
     for i in range(len(selected_groups) - 1):
@@ -1210,3 +1244,74 @@ def plot_overlap_statistics(overlap_ppm_by_table, table_names):
 
     return encoded_image
 
+def calculate_all_pairs_overlap(groups, sub_array_size):
+    """Calculate overlaps for all pairs of groups."""
+    c, d = sub_array_size
+    overlaps = {}
+    group_indices = list(groups.keys())
+
+    for i in range(len(group_indices)):
+        for j in range(i + 1, len(group_indices)):
+            group1_idx = group_indices[i]
+            group2_idx = group_indices[j]
+            group1 = groups[group1_idx]
+            group2 = groups[group2_idx]
+
+            max_value_group1 = np.max(group1)
+            overlapping_values = group2[group2 < max_value_group1]
+
+            overlap_count = len(overlapping_values)
+            overlap_percentage = overlap_count / (c * d) * 100
+
+            overlaps[(group1_idx, group2_idx)] = overlap_percentage
+
+    return overlaps
+
+def generate_overlap_data_for_all_combinations(groups, selected_groups, sub_array_size):
+    """Generate overlaps for all combinations of four selected groups."""
+    group_data = {idx: groups[idx] for idx in selected_groups}
+    all_pair_overlaps = calculate_all_pairs_overlap(group_data, sub_array_size)
+
+    return all_pair_overlaps
+
+def plot_min_4level_table(best_groups_all, min_overlap_all, best_groups_append, min_overlap_append, table_names, figsize=(12, 8)):
+    print("Generating best group overlap plot...")
+    encoded_images = []
+
+    # Debug: Check input data
+    print("Best groups by table:", best_groups_append)
+    print("Minimum overlaps by table:", min_overlap_append)
+
+    # Prepare the data for the table
+    header = ["Table Name", "Best Groups", "Average Overlap"]
+    table_data = [header]
+
+    # Data for individual tables
+    for name, groups, overlap in zip(table_names, best_groups_append, min_overlap_append):
+        table_data.append([name, ', '.join(map(str, groups)), f"{overlap:.2f}"])
+
+    # Overall best groups
+    table_data.append(["Overall", ', '.join(map(str, best_groups_all)), f"{min_overlap_all:.2f}"])
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('tight')
+    ax.axis('off')
+    
+    # Create and adjust the table
+    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(8)
+    table.scale(1, 1.5)  # Adjust table size
+
+    ax.set_title('Best 4 Groups with Minimum Average Overlap')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+    # Save to buffer
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+
+    return encoded_image

@@ -25,7 +25,7 @@ def run_flask():
     #server = make_server('0.0.0.0', 5000, app)    #'0.0.0.0': The server is bound to all network interfaces, making it accessible from any IP address that can reach the host machine.
     #server = make_server('localhost', 8000, app)  # This tells the server to bind to the localhost network interface, which is accessible only from the same machine on which the server is running.
                                                    #A WSGI server is created to serve the app (a Flask application, in this case) on localhost at port 8000.
-    server = make_server('0.0.0.0', 5000, app, threaded=True)  # Enable multi-threading here
+    server = make_server('0.0.0.0', 4000, app, threaded=True)  # Enable multi-threading here
     server.serve_forever()
 
 '''It provides a quick and straightforward way to get your web application up and running for testing purposes. 
