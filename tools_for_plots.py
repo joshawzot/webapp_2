@@ -387,13 +387,23 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
 
 import itertools
 
-def find_min_average_overlap(all_ppm_overlaps):
-    print("AAAAA:", all_ppm_overlaps)
+''' Minimum Average Overlap: The primary criterion is to find the combination of groups that has the lowest average overlap among the sequential pairs within that combination. This determines which groups are considered best in terms of minimizing the intersection of data points.
+
+    Maximum Average Gap: If there are combinations with the same average overlap, the next criterion is to select the combination that has the highest average gap. This seeks to maximize the average distance between the groups, aiming for a more evenly spaced distribution.
+
+    Smallest Maximum-Minimum Gap Difference: If combinations still tie based on the average overlap and maximum average gap, the next criterion looks at the difference between the maximum gap and minimum gap within each combination. The aim is to select the combination with the smallest difference, which suggests a more uniform distribution of gaps between the groups.
+
+    Smallest Statistical Gap (New Criterion): Finally, if all previous metrics are identical, the smallest statistical gap, based on the difference in the maximum values of consecutive groups, is used as a tiebreaker. This criterion ensures that the selected combination has the smallest difference between the maximum values of consecutive groups, further refining the selection to ensure minimal variation between groups.'''
+def find_min_average_overlap(overlaps, group_stats):
+    print("overlaps:", overlaps)
     min_avg_overlap = float('inf')
     best_groups = []
+    max_avg_gap = 0  # Initialize the maximum average gap
+    min_smallest_stat_gap = float('inf')  # Initialize the smallest stat gap
+    min_max_gap_minus_min_gap = float('inf')  # Difference between max and min gap in best case
 
     # Get all unique group indices from the keys of the overlap dictionary
-    group_indices = set([key[0] for key in all_ppm_overlaps.keys()] + [key[1] for key in all_ppm_overlaps.keys()])
+    group_indices = set([key[0] for key in overlaps.keys()] + [key[1] for key in overlaps.keys()])
 
     # Generate all combinations of four distinct groups
     group_combinations = itertools.combinations(sorted(group_indices), 4)
@@ -403,19 +413,38 @@ def find_min_average_overlap(all_ppm_overlaps):
         # Get all sequential pairs from the current combination of four groups
         pairs = [(combination[i], combination[i + 1]) for i in range(len(combination) - 1)]
         overlap_values = []
+        stat_gaps = []
+        gaps = []
 
-        # Calculate average overlap for the sequential pairs within the combination
+        # Calculate average overlap and stat gaps for the sequential pairs within the combination
         for pair in pairs:
-            if pair in all_ppm_overlaps:
-                overlap_values.append(all_ppm_overlaps[pair])
-            elif (pair[1], pair[0]) in all_ppm_overlaps:  # Check both directions
-                overlap_values.append(all_ppm_overlaps[(pair[1], pair[0])])
+            if pair in overlaps:
+                overlap_values.append(overlaps[pair])
+            elif (pair[1], pair[0]) in overlaps:  # Check both directions
+                overlap_values.append(overlaps[(pair[1], pair[0])])
+            # Calculate gaps using group_stats
+            if pair[0] in group_stats and pair[1] in group_stats:
+                stat_gaps.append(group_stats[pair[1]][0] - group_stats[pair[0]][0])  # max of next - max of previous
+                gaps.append(pair[1] - pair[0])
 
-        # Only calculate average if all pairs have values
-        if len(overlap_values) == len(pairs):
+        # Only calculate averages if all pairs have values and stats
+        if len(overlap_values) == len(pairs) and len(stat_gaps) == len(pairs):
             avg_overlap = sum(overlap_values) / len(overlap_values)
-            if avg_overlap < min_avg_overlap:
+            avg_gap = sum(gaps) / len(gaps)
+            min_gap = min(gaps)
+            max_gap = max(gaps)
+            smallest_stat_gap = min(stat_gaps)
+            max_gap_minus_min_gap = max_gap - min_gap
+
+            # Update best groups based on new selection criteria
+            if (avg_overlap < min_avg_overlap or
+                (avg_overlap == min_avg_overlap and (avg_gap > max_avg_gap or
+                (avg_gap == max_avg_gap and (max_gap_minus_min_gap < min_max_gap_minus_min_gap or
+                (max_gap_minus_min_gap == min_max_gap_minus_min_gap and smallest_stat_gap < min_smallest_stat_gap)))))):
                 min_avg_overlap = avg_overlap
+                max_avg_gap = avg_gap
+                min_max_gap_minus_min_gap = max_gap_minus_min_gap
+                min_smallest_stat_gap = smallest_stat_gap
                 best_groups = combination
 
     return best_groups, min_avg_overlap
@@ -820,84 +849,68 @@ def get_column_widths(table_data):
     
     return column_widths
 
-def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups, figsize=(12, 16)):
+def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups):
     # Unpack data_matrix_size into a and b
     a, b = data_matrix_size
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize)  # Create two subplots vertically stacked
-    ax1.axis('tight')
-    ax1.axis('off')
-    ax2.axis('tight')
-    ax2.axis('off')
+    # Helper function to create a figure with table
+    def create_table_figure(table_data, column_widths, title):
+        fig, ax = plt.subplots(figsize=(12, 8))  # Adjust the size as needed
+        ax.axis('tight')
+        ax.axis('off')
+        table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(8)
+        table.scale(1, 1.2)
+        ax.set_title(title)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        encoded_image = base64.b64encode(buf.read()).decode('utf-8')
+        plt.close(fig)
+        return encoded_image
 
     header = ["State"] + [f"{table_name}" for table_name in table_names] + ["Average"]
-    table_data = [header]
-    table_data2 = [header]  # Same header for the second table
+    table_data1, table_data2 = [header], [header]  # Initialize table data lists with headers
 
-    # Initialize lists to store column totals for calculating averages later
-    col_totals = [0] * (len(header) - 1)
-    col_totals2 = [0] * (len(header) - 1)
-
+    # Calculate the data for the tables
     num_group_pairs = len(selected_groups) - 1
     for i in range(num_group_pairs):
-        row = [f"State {selected_groups[i]} & State {selected_groups[i+1]}"]
+        row1 = [f"State {selected_groups[i]} & State {selected_groups[i+1]}"]
         row2 = [f"State {selected_groups[i]} & State {selected_groups[i+1]}"]
-        valid_counts = []
+        valid_counts1 = []
         valid_counts2 = []
 
         for j, overlaps in enumerate(combined_overlaps):
             if i < len(overlaps):
-                overlap_count = overlaps[i][2]
+                overlap_count1 = overlaps[i][2]
                 overlap_count2 = overlaps[i][3]  # Assuming this index exists and is valid
-                row += [f"{overlap_count}"]
-                row2 += [f"{overlap_count2:.2f}%"]
-                col_totals[j] += overlap_count
-                col_totals2[j] += overlap_count2
-                valid_counts.append(overlap_count)
+                row1.append(f"{overlap_count1}")
+                row2.append(f"{overlap_count2:.2f}%")
+                valid_counts1.append(overlap_count1)
                 valid_counts2.append(overlap_count2)
             else:
-                row += ["-"]
-                row2 += ["-"]
+                row1.append("-")
+                row2.append("-")
 
-        average_count = sum(valid_counts) / len(valid_counts) if valid_counts else 0
+        average_count1 = sum(valid_counts1) / len(valid_counts1) if valid_counts1 else 0
         average_count2 = sum(valid_counts2) / len(valid_counts2) if valid_counts2 else 0
-        row += [f"{average_count:.2f}"] if valid_counts else ["0"]
-        row2 += [f"{average_count2:.2f}%"] if valid_counts2 else ["0%"]
-        table_data.append(row)
+        row1.append(f"{average_count1:.2f}")
+        row2.append(f"{average_count2:.2f}%")
+        table_data1.append(row1)
         table_data2.append(row2)
 
-    # Add average row for each table with "-" in the last column
-    avg_row = ["Col Avg"] + [f"{total / num_group_pairs:.2f}" if num_group_pairs > 0 else "-" for total in col_totals[:-1]] + ["-"]
-    avg_row2 = ["Col Avg"] + [f"{total / num_group_pairs:.2f}%" if num_group_pairs > 0 else "-" for total in col_totals2[:-1]] + ["-"]
-    table_data.append(avg_row)
-    table_data2.append(avg_row2)
-
-    column_widths = get_column_widths(table_data)
+    # Assuming get_column_widths is defined elsewhere and calculates column widths
+    column_widths1 = get_column_widths(table_data1)
     column_widths2 = get_column_widths(table_data2)
 
-    # Create tables with calculated column widths
-    table1 = ax1.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
-    table2 = ax2.table(cellText=table_data2, loc='center', colWidths=column_widths2, cellLoc='center')
+    # Create tables and encode as images
+    encoded_image1 = create_table_figure(table_data1, column_widths1, "Overlap count")
+    encoded_image2 = create_table_figure(table_data2, column_widths2, "Overlap percentage")
 
-    table1.auto_set_font_size(False)
-    table1.set_fontsize(8)
-    table1.scale(1, 1.2)
-    ax1.set_title("Overlap count")  # First table title
-
-    table2.auto_set_font_size(False)
-    table2.set_fontsize(8)
-    table2.scale(1, 1.2)
-    ax2.set_title("Overlap percentage")  # Second table title
-
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
-    plt.close(fig)
-
-    return encoded_image
+    return encoded_image1, encoded_image2
 
 def plot_average_values_table(avg_values, table_names, selected_groups, figsize=(12, 8)):
     fig, ax = plt.subplots(figsize=figsize)
@@ -1106,11 +1119,11 @@ def plot_curve_overlap_table(overlap_ppm_by_table, selected_groups_by_table, fig
             combined_table_data[state_pair][tables_order.index(table_name)] = overlap_area_ppm
 
     header = ["State Pair"] + tables_order
-    table_data = [header] + [[pair] + [f"{val:.2f}%" for val in vals] for pair, vals in combined_table_data.items()]
+    table_data = [header] + [[pair] + [f"{val:.4f}%" for val in vals] for pair, vals in combined_table_data.items()]
 
     # Calculate the average for each column
     averages = np.mean([[float(val[:-1]) for val in row[1:]] for row in table_data[1:]], axis=0)
-    averages_row = ["Average"] + [f"{avg:.2f}%" for avg in averages]
+    averages_row = ["Average"] + [f"{avg:.4f}%" for avg in averages]
     table_data.append(averages_row)
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -1173,6 +1186,8 @@ def plot_distributions(fit_params):
 def calculate_overlap(group_data, selected_groups, sub_array_size):
     c, d = sub_array_size
     overlaps = []
+    group_stats = {}  # Dictionary to store max and min of each group
+
     # Create a mapping of selected group indices to their corresponding data in groups
     group_mapping = {idx: data for idx, data in zip(selected_groups, group_data)}
 
@@ -1181,21 +1196,32 @@ def calculate_overlap(group_data, selected_groups, sub_array_size):
         group1 = group_mapping[selected_groups[i]]
         group2 = group_mapping[selected_groups[i+1]]
 
+        # Calculate max and min for each group and store it
         max_value_group1 = np.max(group1)
+        min_value_group1 = np.min(group1)
+        max_value_group2 = np.max(group2)
+        min_value_group2 = np.min(group2)
+
+        group_stats[selected_groups[i]] = (max_value_group1, min_value_group1)
+        if i == len(selected_groups) - 2:  # Ensure the last group's stats are also added
+            group_stats[selected_groups[i+1]] = (max_value_group2, min_value_group2)
+
         overlapping_values = group2[group2 < max_value_group1]
 
         print(f"Max of group {selected_groups[i]}:", max_value_group1)  
-        print(f"Min of group {selected_groups[i+1]}:", np.min(group2))  
-        print(f"Number of values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", len(overlapping_values))
-        print(f"Overlapping values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", overlapping_values)
+        print(f"Min of group {selected_groups[i]}:", min_value_group1)
+        print(f"Max of group {selected_groups[i+1]}:", max_value_group2)
+        print(f"Min of group {selected_groups[i+1]}:", min_value_group2)
+        #print(f"Number of values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", len(overlapping_values))
+        #print(f"Overlapping values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", overlapping_values)
 
         overlap_count = len(overlapping_values)
-        overlap_count_percentage = overlap_count/(c*d) * 100
-        total_elements = group2.size  
-        #ppm = (overlap_count / total_elements) * 1e6
+        overlap_count_percentage = overlap_count / (c * d) * 100
         overlaps.append((selected_groups[i], selected_groups[i+1], overlap_count, overlap_count_percentage))
-
-    return overlaps
+        
+        print("group_stats:", group_stats)
+        
+    return overlaps, group_stats
 
 def plot_overlap_statistics(overlap_ppm_by_table, table_names):
     """

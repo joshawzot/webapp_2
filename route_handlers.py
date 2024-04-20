@@ -577,53 +577,35 @@ def view_plot(database, table_name, plot_function):
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
     if 'db_name' not in request.form:
-        flash('No database selected')
-        return redirect(request.url)
+        return jsonify(error="No database selected"), 400
 
-    # Get db_name from form data
     db_name = request.form['db_name']
     engine = create_db_engine(db_name)
 
-    # Filter out any files that are empty (no filename)
     files = [f for f in request.files.getlist('files[]') if f.filename]
-
-    # Check if after filtering we have no files left
     if not files:
-        flash('No files selected')
-        return redirect(request.url)
+        return jsonify(error="No files selected"), 400
 
     results = []
-
     for file in files:
-        if not file.filename:
-            print('No selected file')
-            return redirect(request.url)
-
-        print(file.filename)
-
-        file.filename = sanitize_table_name(file.filename)
-        file_extension = file.filename.rpartition('_')[-1]
-        print('file_extension:', file_extension)
+        filename = sanitize_table_name(file.filename)
+        file_extension = filename.rpartition('_')[-1]
         file_stream = BytesIO(file.read())
+
         try:
             df = process_file(file_stream, file_extension, db_name)
-            # Transpose the dataframe if it has more than 1017 columns
             if df.shape[1] > 1017:
                 df = df.transpose()
             if not df.empty:
-                print(f'Uploading {file.filename}')
-                df.to_sql(file.filename, engine, if_exists='replace', index=False)
-                results.append(f"{file.filename} uploaded successfully")
+                df.to_sql(filename, engine, if_exists='replace', index=False)
+                results.append(f"{filename} uploaded successfully")
             else:
-                print(f"No data to upload for {file.filename}. Dataframe is empty.")
-                results.append(f"No data processed for {file.filename}")
-
+                results.append(f"No data to upload for {filename}. Dataframe is empty.")
         except Exception as e:
-            error_msg = f"Error processing {file.filename}: {e}"
-            print(error_msg)
+            error_msg = f"Error processing {filename}: {str(e)}"
             results.append(error_msg)
 
-    return render_results(results)
+    return jsonify(results=results)
 
 @app.route('/delete-record/<database>/<table_name>', methods=['DELETE'])  # delete a table
 def delete_record(database, table_name):
