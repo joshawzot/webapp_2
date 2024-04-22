@@ -590,6 +590,7 @@ def upload_file():
     for file in files:
         filename = sanitize_table_name(file.filename)
         file_extension = filename.rpartition('_')[-1]
+        print("file_extension:", file_extension)
         file_stream = BytesIO(file.read())
 
         try:

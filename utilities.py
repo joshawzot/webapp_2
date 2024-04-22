@@ -183,8 +183,8 @@ def process_mat_file(file_content):
     for key in mat_data:
         if not key.startswith('__'):
             data = mat_data[key]
-            #print("data.shape", data.shape)
-            if data.shape == (64, 64, 8) or data.shape == (64, 64, 4):
+            print("data.shape", data.shape)
+            if data.shape == (64, 64, 8) or data.shape == (64, 64, 4) or data.shape == (100, 64, 64):
                 flattened_data = flatten_sections(data)
                 df = pd.DataFrame(flattened_data)
             elif data.shape == (64, 64):  # Handling 2D data

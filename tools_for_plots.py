@@ -1183,6 +1183,8 @@ def plot_distributions(fit_params):
     plt.close()  # Clear the current figure to free memory
     return encoded
 
+'''calculate not only the number of elements in group (n+1) that are smaller than the maximum of group (n), but also the number of elements in group (n) that are larger than the minimum of group (n+1). Then, for each pair of groups, you will choose the smaller count from these two calculations to determine the overlap.
+'''
 def calculate_overlap(group_data, selected_groups, sub_array_size):
     c, d = sub_array_size
     overlaps = []
@@ -1192,7 +1194,6 @@ def calculate_overlap(group_data, selected_groups, sub_array_size):
     group_mapping = {idx: data for idx, data in zip(selected_groups, group_data)}
 
     for i in range(len(selected_groups) - 1):
-        # Use selected_groups to access the correct groups in group_mapping
         group1 = group_mapping[selected_groups[i]]
         group2 = group_mapping[selected_groups[i+1]]
 
@@ -1206,20 +1207,25 @@ def calculate_overlap(group_data, selected_groups, sub_array_size):
         if i == len(selected_groups) - 2:  # Ensure the last group's stats are also added
             group_stats[selected_groups[i+1]] = (max_value_group2, min_value_group2)
 
-        overlapping_values = group2[group2 < max_value_group1]
+        # Calculate overlaps according to new definitions
+        overlapping_values1 = group2[group2 < max_value_group1]
+        overlapping_values2 = group1[group1 > min_value_group2]
 
+        overlap_count1 = len(overlapping_values1)
+        overlap_count2 = len(overlapping_values2)
+        chosen_overlap_count = min(overlap_count1, overlap_count2)
+        chosen_overlap_percentage = chosen_overlap_count / (c * d) * 100
+
+        overlaps.append((selected_groups[i], selected_groups[i+1], chosen_overlap_count, chosen_overlap_percentage))
+        
         print(f"Max of group {selected_groups[i]}:", max_value_group1)  
         print(f"Min of group {selected_groups[i]}:", min_value_group1)
         print(f"Max of group {selected_groups[i+1]}:", max_value_group2)
         print(f"Min of group {selected_groups[i+1]}:", min_value_group2)
-        #print(f"Number of values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", len(overlapping_values))
-        #print(f"Overlapping values in group {selected_groups[i+1]} smaller than max of group {selected_groups[i]}:", overlapping_values)
-
-        overlap_count = len(overlapping_values)
-        overlap_count_percentage = overlap_count / (c * d) * 100
-        overlaps.append((selected_groups[i], selected_groups[i+1], overlap_count, overlap_count_percentage))
-        
-        print("group_stats:", group_stats)
+        print("Group stats:", group_stats)
+        print(f"Overlap count (smaller values in (n+1)): {overlap_count1}")
+        print(f"Overlap count (larger values in (n)): {overlap_count2}")
+        print(f"Chosen overlap count: {chosen_overlap_count}")
         
     return overlaps, group_stats
 
