@@ -90,7 +90,7 @@ def plot_histogram_with_fitting(aggregated_data, colors, figsize=(15, 10)):
     return encoded_plots_density, encoded_plots_percentage, fitting_params
 
 #combined
-
+'''The function plot_window_analysis_table calculates the percentiles based on the raw data points from the provided group_data.'''
 def plot_window_analysis_table(group_data, selected_groups, figsize=(12, 8)):
     """
     group_data is a dictionary where keys are group IDs and values are lists or NumPy arrays of data points for each group.

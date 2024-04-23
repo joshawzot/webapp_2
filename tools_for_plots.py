@@ -298,7 +298,14 @@ def plot_transformed_cdf(data, table_names, colors, figsize=(15, 10)):
             sigma_values = sp_stats.norm.ppf(cdf_values)
 
             # Plot with the designated color and label (if applicable)
-            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i], label=label)
+            plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)  # Thin lines
+            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i])  # Scatter dots
+
+            # Plot with the designated color and label (if applicable)
+            #plt.scatter(sorted_data, sigma_values, s=10, color=colors[i], label=label)
+
+            # Plot with the designated color and label (if applicable)
+            #plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)
 
     plt.xlabel('Transformed Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
@@ -888,7 +895,7 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
                 overlap_count1 = overlaps[i][2]
                 overlap_count2 = overlaps[i][3]  # Assuming this index exists and is valid
                 row1.append(f"{overlap_count1}")
-                row2.append(f"{overlap_count2:.2f}%")
+                row2.append(f"{overlap_count2:.4f}%")
                 valid_counts1.append(overlap_count1)
                 valid_counts2.append(overlap_count2)
             else:
@@ -897,10 +904,22 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
 
         average_count1 = sum(valid_counts1) / len(valid_counts1) if valid_counts1 else 0
         average_count2 = sum(valid_counts2) / len(valid_counts2) if valid_counts2 else 0
-        row1.append(f"{average_count1:.2f}")
-        row2.append(f"{average_count2:.2f}%")
+        row1.append(f"{average_count1:.4f}")
+        row2.append(f"{average_count2:.4f}%")
         table_data1.append(row1)
         table_data2.append(row2)
+
+    # Calculate averages for each column and add a final "Average" row
+    averages_row1 = ["Overall Average"]
+    averages_row2 = ["Overall Average"]
+    for col in range(1, len(header)):  # Skip the first column "State"
+        column_values1 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data1[1:] if row[col] != "-"]
+        column_values2 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data2[1:] if row[col] != "-"]
+        averages_row1.append(f"{sum(column_values1) / len(column_values1) if column_values1 else 0:.4f}")
+        averages_row2.append(f"{sum(column_values2) / len(column_values2) if column_values2 else 0:.4f}%")
+
+    table_data1.append(averages_row1)
+    table_data2.append(averages_row2)
 
     # Assuming get_column_widths is defined elsewhere and calculates column widths
     column_widths1 = get_column_widths(table_data1)
