@@ -116,6 +116,7 @@ def plot_boxplot(data, table_names, figsize=(15, 10)):
     xticks = []
     xticklabels = table_names  # Adjusted to your groups' names
     
+    print("data:", data)
     # Iterate over each group to plot
     for i, group in enumerate(data):
         # The first position of each group for the x-tick
@@ -126,8 +127,8 @@ def plot_boxplot(data, table_names, figsize=(15, 10)):
             position = i * len(group) + j + 1
             plt.boxplot(data, positions=[position], widths=0.6)
 
-            # Calculate and annotate statistics
-            '''mean, std_dev, outlier_percentage = calculate_statistics(data)
+            '''# Calculate and annotate statistics
+            mean, std_dev, outlier_percentage = calculate_statistics(data)
             offset = 10  # Distance above the max value for annotation
             plt.text(position, max(data) + offset, f'Avg: {mean:.2f}\nSD: {std_dev:.2f}\nOutliers: {outlier_percentage}%',
                      horizontalalignment='center', verticalalignment='top', fontsize=11)'''
@@ -153,41 +154,6 @@ def plot_boxplot(data, table_names, figsize=(15, 10)):
     plt.clf()
 
     return plot_data_boxplot
-
-'''def plot_histogram(data, table_names, colors, figsize=(15, 10)):
-    plt.figure(figsize=figsize)
-    
-    # Calculate global min and max across all groups and subgroups for setting the histogram range
-    global_min = min([min(subgroup) for group in data for subgroup in group])
-    global_max = max([max(subgroup) for group in data for subgroup in group])
-
-    # Create a list of bin edges with an increment of 1, corrected to use global_min and global_max
-    bin_edges = np.arange(global_min, global_max + 1, 1)  # +1 to include the last value
-
-    # Iterate over each group to plot
-    for i, group in enumerate(data):
-        for j, subgroup in enumerate(group):
-            # Generate histogram for each subgroup with the specified bin edges
-            plt.hist(subgroup, bins=bin_edges, color=colors[i], alpha=0.75, label=f'{table_names[i]} - Group {j+1}')
-    
-    plt.xlabel('Value', fontsize=12)
-    plt.ylabel('Frequency', fontsize=12)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.grid(True)
-    plt.legend()
-
-    # Save the histogram figure to a buffer
-    buf_histogram = BytesIO()
-    plt.savefig(buf_histogram, format='png', bbox_inches='tight')
-    buf_histogram.seek(0)
-    plot_data_histogram = base64.b64encode(buf_histogram.getvalue()).decode('utf-8')
-    buf_histogram.close()
-
-    # Clear the figure to start fresh for another plot
-    plt.clf()
-
-    return plot_data_histogram'''
 
 def plot_histogram(data, table_names, colors, figsize=(15, 10)):
     plt.figure(figsize=figsize)
@@ -232,50 +198,6 @@ def plot_histogram(data, table_names, colors, figsize=(15, 10)):
     plt.clf()
 
     return plot_data_histogram
-    
-'''def plot_transformed_cdf(data, table_names, colors, figsize=(15, 10)):
-    plt.figure(figsize=figsize)
-    
-    # Ensure the color index doesn't exceed the length of the colors array
-    color_index = 0
-
-    for i, group in enumerate(data):
-        for j, subgroup in enumerate(group):
-            if color_index >= len(colors):
-                print("Warning: The color index exceeds the number of available colors. Reusing colors.")
-                color_index = 0  # Reset color index or alternatively continue without resetting
-
-            # Sort the subgroup data
-            sorted_data = np.sort(subgroup)
-            # Calculate the CDF values
-            cdf_values = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
-            # Transform CDF values to sigma (standard deviations) using the ppf (percent point function)
-            sigma_values = sp_stats.norm.ppf(cdf_values)
-            # Plot the sorted data against the transformed CDF values as dots, using the corresponding color
-            #plt.scatter(sorted_data, sigma_values, s=10, color=colors[color_index], label=f'{table_names[i]} - Group {j+1}')
-
-            # Plot the sorted data against the transformed CDF values as dots, using the corresponding color
-            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i], label=f'{table_names[i]} - Group {j+1}')
-
-            color_index += 1  # Move to the next color for the next subgroup
-
-    plt.xlabel('Transformed Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Transformed CDF of Data by Groups')
-    plt.legend()
-    plt.grid(True)
-
-    # Save the figure to a buffer and encode it to base64
-    buf_transformed_cdf = BytesIO()
-    plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
-    buf_transformed_cdf.seek(0)
-    plot_data_transformed_cdf = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
-    buf_transformed_cdf.close()
-
-    # Clear the figure to start fresh for another plot
-    plt.clf()
-
-    return plot_data_transformed_cdf'''
 
 def plot_transformed_cdf(data, table_names, colors, figsize=(15, 10)):
     plt.figure(figsize=figsize)
@@ -402,8 +324,7 @@ import itertools
 
     Smallest Statistical Gap (New Criterion): Finally, if all previous metrics are identical, the smallest statistical gap, based on the difference in the maximum values of consecutive groups, is used as a tiebreaker. This criterion ensures that the selected combination has the smallest difference between the maximum values of consecutive groups, further refining the selection to ensure minimal variation between groups.'''
 def find_min_average_overlap(overlaps, group_stats):
-    print("overlaps:", overlaps)
-    min_avg_overlap = float('inf')
+    min_avg_overlap = float('inf') #positive infinity
     best_groups = []
     max_avg_gap = 0  # Initialize the maximum average gap
     min_smallest_stat_gap = float('inf')  # Initialize the smallest stat gap
@@ -444,6 +365,7 @@ def find_min_average_overlap(overlaps, group_stats):
             max_gap_minus_min_gap = max_gap - min_gap
 
             # Update best groups based on new selection criteria
+            #print("min_avg_overlap:", min_avg_overlap)
             if (avg_overlap < min_avg_overlap or
                 (avg_overlap == min_avg_overlap and (avg_gap > max_avg_gap or
                 (avg_gap == max_avg_gap and (max_gap_minus_min_gap < min_max_gap_minus_min_gap or
@@ -725,108 +647,6 @@ def plot_histogram_with_fitting(data, table_names, colors, figsize=(15, 10)):
     print("fitting_params:", fitting_params)
     return encoded_plots_density, encoded_plots_percentage, fitting_params
 
-'''def plot_histogram_with_fitting(data, table_names, colors, figsize=(15, 10)):
-    combined_data = {}
-    for table_index, group in enumerate(data):
-        for state_index, subgroup in enumerate(group):
-            if state_index not in combined_data:
-                combined_data[state_index] = []
-            combined_data[state_index].extend(subgroup)
-
-    fig, ax_left = plt.subplots(figsize=figsize)
-    ax_right = ax_left.twinx()  # Create a twin of the initial axes for the counts
-
-    for state_index, subgroup in combined_data.items():
-        label = f'Combined - State {state_index + 1}'
-        # Plot density histogram on the left y-axis
-        n, bins, patches = ax_left.hist(subgroup, bins=50, color=colors[state_index % len(colors)], alpha=0.6, label=label + ' (Density)', density=True)
-
-        # Plot counts histogram invisibly to get bin counts
-        n_counts, _, _ = ax_right.hist(subgroup, bins=bins, alpha=0)  # Invisible; used to scale the right y-axis for counts
-
-        # Fit data to distributions
-        f = Fitter(subgroup, distributions=['norm', 'expon', 'gamma', 'lognorm', 'beta'], timeout=30)
-        f.fit()
-        best_fit_name = list(f.get_best(method='sumsquare_error').keys())[0]
-        best_fit_params = f.fitted_param[best_fit_name]
-
-        x = np.linspace(min(subgroup), max(subgroup), 1000)
-        if best_fit_name in stats._continuous_distns._distn_names:
-            dist = getattr(stats, best_fit_name)
-            pdf_values = dist.pdf(x, *best_fit_params[:-2], loc=best_fit_params[-2], scale=best_fit_params[-1])
-            ax_left.plot(x, pdf_values, linewidth=2, label=f'Best fit for State {state_index + 1}: {best_fit_name}')
-
-    ax_left.set_xlabel('Value')
-    ax_left.set_ylabel('Density')
-    ax_right.set_ylabel('Count')
-    ax_right.set_yscale('log')  # Set the right y-axis to log scale
-    #ax_left.legend(loc='best')
-
-    plt.tight_layout()
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)  # Close the figure to free memory
-
-    buf.seek(0)
-    plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return plot_data'''
-
-'''def plot_histogram_with_fitting(data, table_names, colors, figsize=(15, 5)):
-    # Aggregate data by state across all tables
-    combined_data = {}
-    for table_index, group in enumerate(data):
-        for state_index, subgroup in enumerate(group):
-            if state_index not in combined_data:
-                combined_data[state_index] = []
-            combined_data[state_index].extend(subgroup)
-    
-    total_states = len(combined_data)
-    
-    # Adjust the total figure size based on the number of states
-    fig_total_height = figsize[1] * total_states
-    fig, axs = plt.subplots(total_states, 1, figsize=(figsize[0], fig_total_height), squeeze=False)
-    
-    for state_index, subgroup in combined_data.items():
-        ax = axs[state_index, 0]  # Access the correct Axes object
-
-        label = f'Combined - State {state_index + 1}'
-        # Normalize the histogram and plot on the left y-axis
-        ax.hist(subgroup, bins=50, color=colors[state_index % len(colors)], alpha=0.75, label=label + ' (Density)', density=True)
-        ax.set_xlabel('Value')
-        ax.set_ylabel('Density')
-        ax.legend(loc='upper left')
-
-        # Create a twin Axes sharing the xaxis
-        ax2 = ax.twinx()
-        # Plot the histogram again on the right y-axis to show count numbers
-        ax2.hist(subgroup, bins=50, alpha=0)  # Invisible, but adds the count scale to the right y-axis
-        ax2.set_ylabel('Count')
-
-        f = Fitter(subgroup, distributions=['norm', 'expon', 'gamma', 'lognorm', 'beta'], timeout=30)
-        f.fit()
-        best_fit_name = list(f.get_best(method='sumsquare_error').keys())[0]
-        best_fit_params = f.fitted_param[best_fit_name]
-
-        x = np.linspace(min(subgroup), max(subgroup), 1000)
-        if best_fit_name in stats._continuous_distns._distn_names:
-            dist = getattr(stats, best_fit_name)
-            pdf_values = dist.pdf(x, *best_fit_params[:-2], loc=best_fit_params[-2], scale=best_fit_params[-1])
-            ax.plot(x, pdf_values, label=f'Best fit: {best_fit_name}', linewidth=2, color='red')
-            ax.legend(loc='upper right')
-
-    plt.tight_layout()
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)  # Close the figure to free memory
-
-    buf.seek(0)
-    plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return plot_data'''
-
 def get_column_widths(table_data):
     """
     Calculate column widths based on the content length of each column, aiming to
@@ -910,8 +730,8 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
         table_data2.append(row2)
 
     # Calculate averages for each column and add a final "Average" row
-    averages_row1 = ["Overall Average"]
-    averages_row2 = ["Overall Average"]
+    averages_row1 = ["Average"]
+    averages_row2 = ["Average"]
     for col in range(1, len(header)):  # Skip the first column "State"
         column_values1 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data1[1:] if row[col] != "-"]
         column_values2 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data2[1:] if row[col] != "-"]
@@ -1237,14 +1057,14 @@ def calculate_overlap(group_data, selected_groups, sub_array_size):
 
         overlaps.append((selected_groups[i], selected_groups[i+1], chosen_overlap_count, chosen_overlap_percentage))
         
-        print(f"Max of group {selected_groups[i]}:", max_value_group1)  
+        '''print(f"Max of group {selected_groups[i]}:", max_value_group1)  
         print(f"Min of group {selected_groups[i]}:", min_value_group1)
         print(f"Max of group {selected_groups[i+1]}:", max_value_group2)
         print(f"Min of group {selected_groups[i+1]}:", min_value_group2)
-        print("Group stats:", group_stats)
+        print("group stats:", group_stats) #max and min of each group
         print(f"Overlap count (smaller values in (n+1)): {overlap_count1}")
         print(f"Overlap count (larger values in (n)): {overlap_count2}")
-        print(f"Chosen overlap count: {chosen_overlap_count}")
+        print(f"Chosen overlap count: {chosen_overlap_count}")'''
         
     return overlaps, group_stats
 
@@ -1296,11 +1116,20 @@ def plot_overlap_statistics(overlap_ppm_by_table, table_names):
     return encoded_image
 
 def calculate_all_pairs_overlap(groups, sub_array_size):
-    """Calculate overlaps for all pairs of groups."""
+    """Calculate overlaps for all pairs of groups with both conditions."""
     c, d = sub_array_size
     overlaps = {}
+    group_stats = {}  # Dictionary to store max and min of each group
     group_indices = list(groups.keys())
 
+    # Calculate and store max and min for each group
+    for idx in group_indices:
+        group = groups[idx]
+        max_value = np.max(group)
+        min_value = np.min(group)
+        group_stats[idx] = (max_value, min_value)
+
+    # Calculate overlaps for each pair of groups
     for i in range(len(group_indices)):
         for j in range(i + 1, len(group_indices)):
             group1_idx = group_indices[i]
@@ -1308,14 +1137,24 @@ def calculate_all_pairs_overlap(groups, sub_array_size):
             group1 = groups[group1_idx]
             group2 = groups[group2_idx]
 
-            max_value_group1 = np.max(group1)
-            overlapping_values = group2[group2 < max_value_group1]
+            max_value_group1 = group_stats[group1_idx][0]
+            min_value_group2 = group_stats[group2_idx][1]
 
-            overlap_count = len(overlapping_values)
-            overlap_percentage = overlap_count / (c * d) * 100
+            # Find elements in group2 less than max of group1 and elements in group1 greater than min of group2
+            overlapping_values1 = group2[group2 < max_value_group1]
+            overlapping_values2 = group1[group1 > min_value_group2]
 
-            overlaps[(group1_idx, group2_idx)] = overlap_percentage
+            overlap_count1 = len(overlapping_values1)
+            overlap_count2 = len(overlapping_values2)
 
+            # Choose the minimum overlap count to determine the overlap percentage
+            chosen_overlap_count = min(overlap_count1, overlap_count2)
+            chosen_overlap_percentage = chosen_overlap_count / (c * d) * 100
+
+            # Store the chosen overlap percentage
+            overlaps[(group1_idx, group2_idx)] = chosen_overlap_percentage
+
+    #return overlaps, group_stats
     return overlaps
 
 def generate_overlap_data_for_all_combinations(groups, selected_groups, sub_array_size):
@@ -1325,7 +1164,7 @@ def generate_overlap_data_for_all_combinations(groups, selected_groups, sub_arra
 
     return all_pair_overlaps
 
-def plot_min_4level_table(best_groups_all, min_overlap_all, best_groups_append, min_overlap_append, table_names, figsize=(12, 8)):
+def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, figsize=(12, 8)):
     print("Generating best group overlap plot...")
     encoded_images = []
 
@@ -1334,15 +1173,12 @@ def plot_min_4level_table(best_groups_all, min_overlap_all, best_groups_append, 
     print("Minimum overlaps by table:", min_overlap_append)
 
     # Prepare the data for the table
-    header = ["Table Name", "Best Groups", "Average Overlap"]
+    header = ["Table Name", "Best States", "Average Overlap"]
     table_data = [header]
 
     # Data for individual tables
     for name, groups, overlap in zip(table_names, best_groups_append, min_overlap_append):
-        table_data.append([name, ', '.join(map(str, groups)), f"{overlap:.2f}"])
-
-    # Overall best groups
-    table_data.append(["Overall", ', '.join(map(str, best_groups_all)), f"{min_overlap_all:.2f}"])
+        table_data.append([name, ', '.join(map(str, groups)), f"{overlap:.4f}%"])
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.axis('tight')
@@ -1354,7 +1190,7 @@ def plot_min_4level_table(best_groups_all, min_overlap_all, best_groups_append, 
     table.set_fontsize(8)
     table.scale(1, 1.5)  # Adjust table size
 
-    ax.set_title('Best 4 Groups with Minimum Average Overlap')
+    ax.set_title('Best 4 States with Minimum Average Overlap')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     # Save to buffer

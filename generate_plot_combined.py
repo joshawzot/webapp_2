@@ -90,64 +90,6 @@ def plot_histogram_with_fitting(aggregated_data, colors, figsize=(15, 10)):
     return encoded_plots_density, encoded_plots_percentage, fitting_params
 
 #combined
-'''The function plot_window_analysis_table calculates the percentiles based on the raw data points from the provided group_data.'''
-def plot_window_analysis_table(group_data, selected_groups, figsize=(12, 8)):
-    """
-    group_data is a dictionary where keys are group IDs and values are lists or NumPy arrays of data points for each group.
-    """
-    window_analysis_data_99_1 = {}
-    window_analysis_data_9999_001 = {}
-
-    # Iterate over the selected groups to calculate window values
-    for i in range(len(selected_groups) - 1):
-        state_a = selected_groups[i]
-        state_b = selected_groups[i + 1]
-        state_pair = f"State {state_a} & State {state_b}"
-
-        # Fetch data for each state and ignore all zeros
-        data_a = np.array(group_data[state_a])[np.array(group_data[state_a]) != 0]
-        data_b = np.array(group_data[state_b])[np.array(group_data[state_b]) != 0]
-
-        # Calculate the 99th and 1st percentiles
-        percentile_99_a = np.percentile(data_a, 99)
-        percentile_1_b = np.percentile(data_b, 1)
-        window_analysis_data_99_1[state_pair] = percentile_1_b - percentile_99_a
-
-        # Calculate the 99.99th and 0.01st percentiles
-        percentile_9999_a = np.percentile(data_a, 99.99)
-        percentile_001_b = np.percentile(data_b, 0.01)
-        window_analysis_data_9999_001[state_pair] = percentile_001_b - percentile_9999_a
-
-    # Generate tables and encode images for both datasets
-    encoded_images = []
-    for data, title in [(window_analysis_data_99_1, "Window Analysis (99% - 1%)"), (window_analysis_data_9999_001, "Window Analysis (99.99% - 0.01%)")]:
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.axis('tight')
-        ax.axis('off')
-        header = ["State Pair", "Window Value"]
-        table_data = [header] + [[pair, f"{vals:.2f}"] for pair, vals in data.items()]
-
-        if len(table_data) > 1:
-            table = ax.table(cellText=table_data, loc='center', cellLoc='center')
-            table.auto_set_font_size(False)
-            table.set_fontsize(8)
-            table.scale(1, 1.2)
-            ax.set_title(title)
-        else:
-            ax.text(0.5, 0.5, "No window analysis data available", va='center', ha='center')
-
-        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-        buf = BytesIO()
-        plt.savefig(buf, format='png')
-        plt.close()
-        buf.seek(0)
-        encoded_image = base64.b64encode(buf.read()).decode('utf-8')
-        buf.close()
-        encoded_images.append(encoded_image)
-
-    return encoded_images[0], encoded_images[1]
-
-#combined
 def generate_plot_combined(table_names, database_name, form_data):
     # Initialize list for all encoded plots
     encoded_plots = []
@@ -199,15 +141,6 @@ def generate_plot_combined(table_names, database_name, form_data):
     # Statistics plot
     encoded_statistics_plot = plot_overlap_statistics(overlap_ppm_by_table, [combined_table_name])
     encoded_plots.append(encoded_statistics_plot)
-    
-    print("aggregated_groups:", aggregated_groups)
-    # Instead of an aggregated_groups list, use a dictionary with selected_group IDs as keys.
-    aggregated_groups_dict = {group: np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0}
-
-    # Update the call to pass aggregated_groups_dict instead of aggregated_groups
-    encoded_image1, encoded_image2 = plot_window_analysis_table(aggregated_groups_dict, selected_groups)
-    encoded_plots.append(encoded_image1)
-    encoded_plots.append(encoded_image2)
 
     return encoded_plots
 
