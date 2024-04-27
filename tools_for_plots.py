@@ -116,7 +116,7 @@ def plot_boxplot(data, table_names, figsize=(15, 10)):
     xticks = []
     xticklabels = table_names  # Adjusted to your groups' names
     
-    print("data:", data)
+    #print("data:", data)
     # Iterate over each group to plot
     for i, group in enumerate(data):
         # The first position of each group for the x-tick
@@ -272,8 +272,10 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
     num_of_groups = num_col_groups * num_row_groups
     partial_rows = total_rows % rows_per_group  # Check if there's a partial row group
     partial_cols = total_cols % cols_per_group  # Check if there's a partial column group
+    print(f"num_row_groups = {num_row_groups}, num_col_groups = {num_col_groups}, num_of_groups = {num_of_groups}, partial_rows = {partial_rows}, partial_cols = {partial_cols}")
 
     group_idx = 0  # Initialize group index
+    real_selected_groups = []
 
     for i in range(num_row_groups + (1 if partial_rows > 0 else 0)):
         for j in range(num_col_groups + (1 if partial_cols > 0 else 0)):
@@ -285,6 +287,8 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
 
             # Check if this group is selected
             if group_idx in selected_groups:
+                print("group_idx:", group_idx)
+                real_selected_groups.append(group_idx)
                 print(f"Group {group_idx}: Start Row: {start_row}, End Row: {end_row}, Start Col: {start_col}, End Col: {end_col}")
 
                 try:
@@ -308,11 +312,12 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
                     print(f"Error accessing data slice: {e}")
 
             group_idx += 1  # Increment group index after each inner loop
+        print("i:", i)
 
     close_connection()
     
     #data_np.shape[1] means columns   #data_np.shape[0] means rows
-    return groups, groups_stats, data_np.shape[1], num_of_groups
+    return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
 
 import itertools
 

@@ -201,13 +201,26 @@ def generate_plot(table_names, database_name, form_data):
     best_groups_append = []
     min_overlap_append = []
 
+    aggregated_window_values = {}
+    
     # Process each table and collect data and statistics (only once)
     for table_name in table_names:
-        groups, stats, _, num_of_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        print("selected_groups:", selected_groups)
         #print("groups:", groups)
         #print("stats:", stats)
         #print("num_of_groups:", num_of_groups)
 
+        normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
+        print("normalized_groups:", normalized_groups)
+        print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
+        window_values = calculate_window_values(groups, normalized_groups)
+
+        for pair, value in window_values.items():
+            # Map normalized group pairs back to original group IDs
+            original_pair = (index_to_element[pair[0]], index_to_element[pair[1]])
+            aggregated_window_values[(table_name, original_pair)] = value
+            
         group_data.append(groups)
         all_groups.extend(groups)
 
@@ -236,6 +249,8 @@ def generate_plot(table_names, database_name, form_data):
     #print("group_data:", group_data)
     #print("all_groups:", all_groups)
 
+    print("aggregated_window_values:", aggregated_window_values)
+
     if selected_groups == list(range(16)):    
         encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))
 
@@ -252,7 +267,7 @@ def generate_plot(table_names, database_name, form_data):
 
     # Generate plots for individual tables
     encoded_plots.append(plot_boxplot(group_data, table_names))
-    #encoded_plots.append(plot_histogram(group_data, table_names, colors))
+    encoded_plots.append(plot_histogram(group_data, table_names, colors))
 
     encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
 
@@ -265,44 +280,6 @@ def generate_plot(table_names, database_name, form_data):
 
     encoded_plot_for_std = plot_std_values_table(std_values, table_names, selected_groups)
     encoded_plots.append(encoded_plot_for_std)
-
-    '''# Collect and aggregate data from each table
-    for table_name in table_names:
-        groups, stats, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
-        #print(groups)
-        for group_index, group_data in enumerate(groups):
-            selected_group = selected_groups[group_index]
-            print("selected_group:", selected_group)
-            aggregated_groups_by_selected_group[selected_group].append(group_data)  # Append the group data as a list
-
-    # Convert lists to NumPy arrays and then aggregate
-    aggregated_groups = [np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0]
-
-    print("aggregated_groups:", aggregated_groups)
-    # Instead of an aggregated_groups list, use a dictionary with selected_group IDs as keys.
-    aggregated_groups_dict = {group: np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0}
-
-    # Update the call to pass aggregated_groups_dict instead of aggregated_groups
-    encoded_image1, encoded_image2 = plot_window_analysis_table(aggregated_groups_dict, selected_groups)
-    encoded_plots.append(encoded_image1)
-    encoded_plots.append(encoded_image2)'''
-
-    aggregated_window_values = {}
-    normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
-    print("selected_groups:", selected_groups)
-    print("normalized_groups:", normalized_groups)
-    print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
-
-    for table_name in table_names:
-        groups, stats, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
-        window_values = calculate_window_values(groups, normalized_groups)
-
-        for pair, value in window_values.items():
-            # Map normalized group pairs back to original group IDs
-            original_pair = (index_to_element[pair[0]], index_to_element[pair[1]])
-            aggregated_window_values[(table_name, original_pair)] = value
-
-    print("aggregated_window_values:", aggregated_window_values)
 
     # Generate and append a single combined window analysis table plot
     encoded_window_analysis_plot = plot_combined_window_analysis_table(aggregated_window_values)

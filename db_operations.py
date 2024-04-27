@@ -122,17 +122,40 @@ def connect_to_db(user, password, host, port=None):
         return None  # Return None if there's a connection error
 
 def fetch_tables(database):
-    """Fetch table names and creation times from the database."""
+    """Fetch table names, creation times, and dimensions from the database."""
     connection = create_connection(database)
     cursor = connection.cursor()
-    query = """
-    SELECT TABLE_NAME, CREATE_TIME 
-    FROM information_schema.tables 
+
+    # Query to fetch table names and creation times
+    table_query = """
+    SELECT TABLE_NAME, CREATE_TIME
+    FROM information_schema.tables
     WHERE table_schema = %s
     ORDER BY CREATE_TIME DESC;
     """
-    cursor.execute(query, (database,))
-    tables = [{'table_name': name, 'creation_time': time} for name, time in cursor.fetchall()]
+    cursor.execute(table_query, (database,))
+    table_info = cursor.fetchall()
+
+    # Dictionary to store table information with dimensions
+    tables = []
+    for name, time in table_info:
+        # Count the number of columns
+        column_query = """
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = %s AND table_name = %s;
+        """
+        cursor.execute(column_query, (database, name))
+        column_count = cursor.fetchone()[0]
+
+        # Count the number of rows
+        row_query = f"SELECT COUNT(*) FROM `{name}`;"
+        cursor.execute(row_query)
+        row_count = cursor.fetchone()[0]
+
+        # Store table info
+        tables.append({'table_name': name, 'creation_time': time, 'dimensions': f"{row_count}x{column_count}"})
+
     cursor.close()
     connection.close()
     return tables

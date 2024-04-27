@@ -106,7 +106,7 @@ def generate_plot_combined(table_names, database_name, form_data):
 
     # Collect and aggregate data from each table
     for table_name in table_names:
-        groups, stats, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
+        groups, stats, _, _, selected_groups= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
         #print(groups)
         for group_index, group_data in enumerate(groups):
             selected_group = selected_groups[group_index]

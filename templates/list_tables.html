@@ -54,19 +54,17 @@
     </div>
 
     <ul id="table-list" class="list-group no-bullets">
-    {% for table in tables %}
-        <li data-table-name="{{ table['table_name'] }}" class="table-item">
-            <input type="checkbox" id="select-table-{{ loop.index }}" class="table-checkbox" data-table-name="{{ table['table_name'] }}">
-
-            <!-- Common buttons -->
-            <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('view_table', database=database, table_name=table['table_name']) }}'">View</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ database }}', '{{ table['table_name'] }}')">Delete This Table</button>
-
-            <!-- Unified editable span for renaming -->
-            <span contenteditable="true" id="table-name-{{ loop.index }}" onblur="renameTable('{{ database }}', '{{ table['table_name'] }}', this.innerText)">{{ table['table_name'] }}</span>
-        </li>
-    {% endfor %}
-    </ul>
+        {% for table in tables %}
+            <li data-table-name="{{ table['table_name'] }}" class="table-item">
+                <input type="checkbox" id="select-table-{{ loop.index }}" class="table-checkbox" data-table-name="{{ table['table_name'] }}">
+                <!-- Display table name and dimensions -->
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('view_table', database=database, table_name=table['table_name']) }}'">View</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ database }}', '{{ table['table_name'] }}')">Delete This Table</button>
+                <span contenteditable="true" onblur="renameTable('{{ database }}', '{{ table['table_name'] }}', this.innerText)">{{ table['table_name'] }}</span>
+                <span id="table-name-{{ loop.index }}" class="table-name">({{ table['dimensions'] }})</span>
+            </li>
+        {% endfor %}
+    </ul>            
 </div>
 
 <!-- Scripts for drag-and-drop functionality, file list management -->
