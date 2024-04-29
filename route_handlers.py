@@ -162,10 +162,6 @@ def delete_database(name):
     finally:
         conn.close()
 
-@app.route('/')  # Defines a route for the root URL
-def home():
-    return redirect(url_for('home_page'))
-
 @app.route('/save-txt-content/<database>/<table_name>', methods=['POST'])
 def save_txt_content(database, table_name):
     try:
@@ -250,7 +246,17 @@ def get_pptx_as_pdf(): hash
     return send_file(io.BytesIO(pdf_response.content), attachment_filename='database.pdf')
 '''
 
-@app.route('/home-page', methods=['GET'])
+#@app.route('/')  # Defines a route for the root URL
+#def home():
+    #print("home")
+    #return redirect(url_for('home_page'))
+    #return redirect(url_for('dynamodb_home'))
+
+@app.route('/dynamodb-home', methods=['GET'])  
+def dynamodb_home():
+    return render_template('dynamodb_home.html')
+
+@app.route('/home-page', methods=['GET'])   # also Defines a route for the root URL
 def home_page():
     """Get a list of databases available."""
     try:
@@ -841,6 +847,8 @@ def copy_selected_tables():
         return jsonify({"success": False, "message": "Some tables failed to copy.", "details": response}), 400
     return jsonify({"success": True, "message": "All selected tables copied successfully."})
 
+from flask import Flask, jsonify, request
+from dynamodb import get_items, add_item
 @app.route('/getDatabases', methods=['GET'])
 def get_databases():
     # Create a database connection
@@ -861,3 +869,27 @@ def get_databases():
     except mysql.connector.Error as err:
         # In case of any database connection errors, return an error message
         return jsonify({"error": str(err)}), 500
+
+@app.route('/add-item', methods=['POST'])
+def create_item():
+    item_id = request.form['item_id']
+    item_data = request.form['item_data']
+    try:
+        response = table.put_item(
+            Item={
+                'ID': item_id,
+                'item_data': item_data
+            }
+        )
+        return redirect(url_for('home'))
+    except ClientError as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/items', methods=['GET'])
+def list_items():
+    try:
+        response = table.scan()
+        items = response['Items']
+        return jsonify(items)
+    except ClientError as e:
+        return jsonify({'error': str(e)}), 500

@@ -199,35 +199,55 @@ def plot_histogram(data, table_names, colors, figsize=(15, 10)):
 
     return plot_data_histogram
 
-def plot_transformed_cdf(data, table_names, colors, figsize=(15, 10)):
+'''
+I want to also get the BER between different states for each table_names, for example for a specific table_name,
+if it has 4 states of data, state0, state1, state2, state3, there will be 3 BER, one between state0 and state1, between state1 and state2, between state2 and state3.
+To calculate the BER,
+reverse the y-axis (for example 1 becomes -1, -2 becomes 2) of state0 and record the absolute value of y-axis that the transformed cdf plot of state0 and the transformed cdf plot of state1 intersects.
+reverse the y-axis (for example 1 becomes -1, -2 becomes 2) of state1 and record the absolute value of y-axis that the transformed cdf plot of state1 and the transformed cdf plot of state2 intersects.
+reverse the y-axis (for example 1 becomes -1, -2 becomes 2) of state2 and record the absolute value of y-axis that the transformed cdf plot of state2 and the transformed cdf plot of state3 intersects.
+the absolute value of y-axis of intersects are the BER.
+'''
+
+def sigma_to_ppm(sigma):
+    # Calculate the area in the tail beyond the sigma value on one side of the distribution
+    tail_probability = sp_stats.norm.sf(sigma)
+    # Convert this probability to parts per million
+    ppm = tail_probability * 1_000_000
+    return ppm
+
+#based on interpolation, not extrapolation 
+def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(15, 10)):
+    # First plot: Transformed CDF
     plt.figure(figsize=figsize)
-    
-    # Track the filenames that have been added to the legend
     added_to_legend = set()
+    ber_results = []
+    transformed_data_groups = []
+    global_x_min = float('inf')
+    global_x_max = float('-inf')
 
     for i, group in enumerate(data):
+        transformed_data = []
+
         for j, subgroup in enumerate(group):
-            # Only add the label the first time a filename is encountered
-            label = f'{table_names[i]}' if table_names[i] not in added_to_legend else None
+            state_index = selected_groups[j]
+            label = f'{table_names[i]} state{state_index}' if f'{table_names[i]} state{state_index}' not in added_to_legend else None
             if label:
-                added_to_legend.add(table_names[i])
-            
-            # Sort the subgroup data
+                added_to_legend.add(label)
+
             sorted_data = np.sort(subgroup)
-            # Calculate the CDF values and transform to sigma values
-            #cdf_values = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
+            global_x_min = min(global_x_min, sorted_data[0])  # Update global x-axis minimum
+            global_x_max = max(global_x_max, sorted_data[-1])  # Update global x-axis maximum
+
             cdf_values = (np.arange(1, len(sorted_data) + 1) - 0.5) / len(sorted_data)
             sigma_values = sp_stats.norm.ppf(cdf_values)
 
-            # Plot with the designated color and label (if applicable)
-            plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)  # Thin lines
-            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i])  # Scatter dots
+            plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)
+            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i])
 
-            # Plot with the designated color and label (if applicable)
-            #plt.scatter(sorted_data, sigma_values, s=10, color=colors[i], label=label)
+            transformed_data.append((sorted_data, sigma_values))
 
-            # Plot with the designated color and label (if applicable)
-            #plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)
+        transformed_data_groups.append(transformed_data)
 
     plt.xlabel('Transformed Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
@@ -235,16 +255,75 @@ def plot_transformed_cdf(data, table_names, colors, figsize=(15, 10)):
     plt.legend()
     plt.grid(True)
 
-    # Save and encode the figure
     buf_transformed_cdf = BytesIO()
     plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
     buf_transformed_cdf.seek(0)
     plot_data_transformed_cdf = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
     buf_transformed_cdf.close()
-    plt.clf()  # Clear the figure for any future plotting
+    plt.clf()
 
-    return plot_data_transformed_cdf
+    # Second plot: Interpolated Curves for BER Calculation
+    plt.figure(figsize=figsize)
+    plt.xlim(global_x_min, global_x_max)  # Set the x-axis to match the original plot's range
 
+    for i, transformed_data in enumerate(transformed_data_groups):
+        calculate_ber_between_selected_states(transformed_data, selected_groups, table_names[i], colors[i], ber_results)
+
+    plt.xlabel('Interpolated Data Value', fontsize=12)
+    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
+    plt.title('Interpolated CDF Curves for BER Calculation')
+    plt.grid(True)
+
+    buf_interpolated_cdf = BytesIO()
+    plt.savefig(buf_interpolated_cdf, format='png', bbox_inches='tight')
+    buf_interpolated_cdf.seek(0)
+    plot_data_interpolated_cdf = base64.b64encode(buf_interpolated_cdf.getvalue()).decode('utf-8')
+    buf_interpolated_cdf.close()
+    plt.clf()
+
+    # Convert BER results to ppm and return
+    converted_ber_results = []
+    for result in ber_results:
+        table_name, transition, sigma_ber, ppm_ber = result  # Update this line
+        converted_ber_results.append((table_name, transition, sigma_ber, ppm_ber))
+
+    return plot_data_transformed_cdf, plot_data_interpolated_cdf, converted_ber_results
+
+def calculate_ber_between_selected_states(transformed_data, selected_groups, table_name, color, ber_results):
+    for k in range(len(transformed_data) - 1):
+        x1, y1 = transformed_data[k]
+        x2, y2 = transformed_data[k + 1]
+
+        # Define start and end states early to ensure they are always set regardless of later conditions
+        start_state = selected_groups[k]
+        end_state = selected_groups[k + 1]
+
+        y1 = -y1  # Reverse the y-axis for the first of the two states being compared
+
+        # Ensure interpolation only within the original data range
+        common_x_min = max(min(x1), min(x2))
+        common_x_max = min(max(x1), max(x2))
+        
+        # Check if there is an overlap; if not, record NaN for BER and skip further calculations
+        if common_x_min >= common_x_max:
+            ber_results.append((table_name, f'state{start_state} to state{end_state}', float('nan'), 0))
+            continue
+
+        common_x = np.linspace(common_x_min, common_x_max, num=1000)
+        interp_y1 = np.interp(common_x, x1, y1)
+        interp_y2 = np.interp(common_x, x2, y2)
+
+        # Calculate the point of closest approach between the two curves
+        idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
+        ber = np.abs(interp_y1[idx_closest])
+        sigma_ber = sp_stats.norm.cdf(-ber)  # Convert ber to sigma level
+        ppm_ber = sigma_to_ppm(sigma_ber)  # Convert sigma to ppm
+        ber_results.append((table_name, f'state{start_state} to state{end_state}', sigma_ber, ppm_ber))
+
+        # Plot interpolation curves
+        plt.plot(common_x, interp_y1, linestyle='--', color=color, alpha=1)
+        plt.plot(common_x, interp_y2, linestyle='--', color=color, alpha=1)
+    
 def get_group_data_new(table_name, selected_groups, database_name, sub_array_size):
     connection = create_connection(database_name)
     query = f"SELECT * FROM `{table_name}`"
@@ -1207,3 +1286,37 @@ def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, f
     buf.close()
 
     return encoded_image
+
+def create_table_figure(table_data, title, figsize=(12, 8)):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.2]*len(table_data[0]))
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+    ax.set_title(title, fontsize=14)
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig)
+    return encoded_image
+
+def plot_ber_tables(ber_results, table_names):
+    # Initialize table headers and data list
+    headers = ["Table Name", "Transition", "Sigma Value", "PPM Value"]
+    combined_table_data = [headers]
+
+    # Populate the combined table data list
+    for result in ber_results:
+        table_name, transition, sigma, ppm = result
+        row = [table_name, transition, f"{sigma:.4f}", f"{ppm:.0f}"]
+        combined_table_data.append(row)
+
+    # Generate the combined table
+    encoded_combined_image = create_table_figure(combined_table_data, "Combined BER Sigma and PPM Values")
+
+    return encoded_combined_image

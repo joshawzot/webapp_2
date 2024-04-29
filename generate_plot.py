@@ -205,7 +205,7 @@ def generate_plot(table_names, database_name, form_data):
     
     # Process each table and collect data and statistics (only once)
     for table_name in table_names:
-        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size) #real selected_groups
         print("selected_groups:", selected_groups)
         #print("groups:", groups)
         #print("stats:", stats)
@@ -269,11 +269,29 @@ def generate_plot(table_names, database_name, form_data):
     encoded_plots.append(plot_boxplot(group_data, table_names))
     encoded_plots.append(plot_histogram(group_data, table_names, colors))
 
-    encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
+    #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
+    #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])
+    
+    plot_data_original, plot_data_interpo, intersections = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
+    encoded_plots.append(plot_data_original)
+    encoded_plots.append(plot_data_interpo)
 
-    encoded_image1, encoded_image2 = plot_overlap_table(all_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups)
+    # Initialize the ber_results list
+    ber_results = []
+
+    # Instead of just printing, also append each intersection to the ber_results list
+    for intersection in intersections:
+        print("intersections:")
+        print(intersection)
+        ber_results.append(intersection)
+
+    # Generate tables for visualizing BER results
+    encoded_image1 = plot_ber_tables(ber_results, table_names)
     encoded_plots.append(encoded_image1)
-    encoded_plots.append(encoded_image2)
+
+    #encoded_image1, encoded_image2 = plot_overlap_table(all_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups)
+    #encoded_plots.append(encoded_image1)
+    #encoded_plots.append(encoded_image2)
 
     encoded_plot_for_avg = plot_average_values_table(avg_values, table_names, selected_groups)
     encoded_plots.append(encoded_plot_for_avg)
@@ -286,4 +304,3 @@ def generate_plot(table_names, database_name, form_data):
     encoded_plots.append(encoded_window_analysis_plot)
 
     return encoded_plots
-

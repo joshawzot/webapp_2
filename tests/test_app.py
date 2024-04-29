@@ -18,7 +18,7 @@ class FlaskAppHomeTest(unittest.TestCase):
 
     def test_home_page_content(self):
         # Navigate to the specified route of your Flask application
-        self.driver.get("http://localhost:5000/home-page")
+        self.driver.get("http://localhost:5000/home")
 
         # Example assertion: Check for a specific element, text, or title on the page
         # Adjust the assertion as needed based on your application's content
