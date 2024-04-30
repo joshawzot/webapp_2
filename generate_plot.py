@@ -225,8 +225,8 @@ def generate_plot(table_names, database_name, form_data):
         all_groups.extend(groups)
 
         # Calculate overlaps for each individual table
-        overlaps, group_stats = calculate_overlap(groups, selected_groups, sub_array_size)
-        all_overlaps.append(overlaps)  # Collecting overlaps for all tables including individual ones
+        #overlaps, group_stats = calculate_overlap(groups, selected_groups, sub_array_size)
+        #all_overlaps.append(overlaps)  # Collecting overlaps for all tables including individual ones
 
         # Extract average and standard deviation values for each selected group
         table_avg_values = [stat[2] for stat in stats]  # Index 2 is average
@@ -235,7 +235,7 @@ def generate_plot(table_names, database_name, form_data):
         avg_values.append(table_avg_values)
         std_values.append(table_std_values)
 
-        if selected_groups == list(range(16)): #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]:
+        '''if selected_groups == list(range(16)): #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]:
             #print(groups)
             complete_overlaps_individule = generate_overlap_data_for_all_combinations(groups, selected_groups, sub_array_size)
             print("complete_overlaps_individule:", complete_overlaps_individule)
@@ -244,15 +244,15 @@ def generate_plot(table_names, database_name, form_data):
             print("Minimum average overlap:", min_overlap)
             
             best_groups_append.append(best_groups)
-            min_overlap_append.append(min_overlap)
+            min_overlap_append.append(min_overlap)'''
 
     #print("group_data:", group_data)
     #print("all_groups:", all_groups)
 
     print("aggregated_window_values:", aggregated_window_values)
 
-    if selected_groups == list(range(16)):    
-        encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))
+    '''if selected_groups == list(range(16)):    
+        encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))'''
 
     #color map
     for table_name in table_names:
@@ -267,7 +267,7 @@ def generate_plot(table_names, database_name, form_data):
 
     # Generate plots for individual tables
     encoded_plots.append(plot_boxplot(group_data, table_names))
-    encoded_plots.append(plot_histogram(group_data, table_names, colors))
+    #encoded_plots.append(plot_histogram(group_data, table_names, colors))
 
     #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
     #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])

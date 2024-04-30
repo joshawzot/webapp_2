@@ -299,7 +299,7 @@ def home_page():
 
         #return render_template('home_page.html', databases=databases, image_urls=image_urls, powerpoint_url=powerpoint_url)
         #return render_template('home_page.html', databases=databases, powerpoint_url=powerpoint_url)
-        return render_template('home_page.html', databases=databases)
+        return render_template('home_page_new.html', databases=databases)
     except mysql.connector.Error as err:
         return str(err)
 
@@ -318,7 +318,7 @@ def data_analysis():
 
         # Pass the necessary variables to the template
         #return render_template('list_tables.html', tables=tables, table_names=table_names, database=database)
-        return render_template('list_tables.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
+        return render_template('list_tables_simple.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
 
     except mysql.connector.Error as err:
         # Log and handle any database errors gracefully
@@ -388,6 +388,49 @@ def render_plot(unique_id):
     
     stored_data = json.loads(stored_data_json)
 
+    database_tables = stored_data["database_tables"]
+    plot_function = stored_data["plot_function"]
+    form_data = stored_data["form_data"]
+
+    # Assuming generate_plot_functions is a dictionary mapping plot function names to their implementations
+    generate_plot_function = generate_plot_functions.get(plot_function)
+    if generate_plot_function is None:
+        return "Error: Invalid plot function selection", 400
+
+    try:
+        # Process each table with the appropriate database. This assumes that your plot function can handle multiple tables.
+        plot_data_list = []
+        for database, table_name in database_tables:
+            plot_data = generate_plot_function([table_name], database, form_data=form_data)
+            if not isinstance(plot_data, list):
+                plot_data = [plot_data]
+            plot_data_list.extend(plot_data)
+
+        # Cache the generated plot data for future requests
+        cache.set(cache_key, plot_data_list, timeout=None)
+
+        return render_template('plot.html', plot_data=plot_data_list)
+    except Exception as e:
+        return f"Error: {e}", 500
+
+'''
+@app.route('/render-plot/<unique_id>')
+def render_plot(unique_id):
+    # Attempt to fetch cached plot data using unique_id as the cache key
+    cache_key = f"plot_data_{unique_id}"
+    cached_plot_data = cache.get(cache_key)
+
+    if cached_plot_data:
+        # If cached data is found, use it to render the plot directly
+        return render_template('plot.html', plot_data=cached_plot_data)
+
+    # If no cache is found, retrieve the stored data from Redis
+    stored_data_json = redis_client.get(unique_id)
+    if not stored_data_json:
+        return "Error: Invalid ID or Data Expired", 404
+    
+    stored_data = json.loads(stored_data_json)
+
     database = stored_data["database"]
     table_name = stored_data["table_name"]
     plot_function = stored_data["plot_function"]
@@ -409,7 +452,7 @@ def render_plot(unique_id):
         return render_template('plot.html', plot_data=plot_data)
     except Exception as e:
         return f"Error: {e}", 500
-
+'''
 def fetch_all_numeric_data(table_name, database_name):
     # Establish a connection to the database
     connection = create_connection(database_name)
@@ -443,6 +486,97 @@ import numpy as np
 from my_flask_app import redis_client
 import json
 
+@app.route('/view-plot', methods=['GET', 'POST'])
+def view_plot():
+    if request.method == "POST":
+        print("POST:::::::::::::::::::::::::::::::::")
+        print("Session data on POST:", session)
+        tables = session.get('tables', [])
+        if not tables:
+            print("Error: No tables in session")
+            return jsonify({"error": "No tables specified"}), 400
+        print("POST tables:", tables)
+
+        plot_function_choice = request.form.get('plot_choice')
+        if plot_function_choice:
+            plot_function = plot_function_choice
+        else:
+            return jsonify({"error": "Plot function not selected"}), 400
+
+        # Handling plot function choices
+        if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
+            # Handle the data according to plot function choice
+            handle_plot_function(plot_function, tables)
+        else:
+            return jsonify({"error": "Invalid plot function selection"}), 400
+
+    else:  # GET request handling
+        print("GET:::::::::::::::::::::::::::::::::")
+        table_identifiers = request.args.get('tables', '')
+        if not table_identifiers:
+            return jsonify({"error": "No tables specified"}), 400
+        session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
+        print("GET tables:", session['tables'])
+        return render_template('choose_plot_function_form.html', tables=session['tables'])
+
+'''
+@app.route('/view-plot/<plot_function>', methods=['GET', 'POST'])
+def view_plot(plot_function):
+
+    if request.method == "POST":
+        print("POST:::::::::::::::::::::::::::::::::")
+        tables = session.get('tables', [])
+        if not tables:
+            return jsonify({"error": "No tables specified"}), 400
+        print("POST tables:", tables)
+        # Check if the user has made a plot function choice
+        plot_function_choice = request.form.get('plot_choice')
+        if plot_function_choice:
+            plot_function = plot_function_choice
+            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
+                return render_template(f'input_form_generate_plot.html', plot_function=plot_function)             
+            else:
+                return jsonify({"error": "choice not selected"}), 400
+
+        # Ensure plot_function has a value before proceeding
+        if plot_function:
+            print(f"plot_function: {plot_function}")  # Now plot_function should have a value
+
+            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
+                # Handle the form data based on the plot function and tables
+                form_data_handlers = {
+                    "generate_plot": get_form_data_generate_plot,
+                    "generate_plot_combined": get_form_data_generate_plot,
+                    "generate_plot_separate": get_form_data_generate_plot,
+                }
+                form_data = form_data_handlers[plot_function](request.form)
+
+                # Store the form data with a unique identifier in Redis
+                unique_id = str(uuid.uuid4())
+                redis_client.set(unique_id, json.dumps({
+                    "database_tables": tables,
+                    "plot_function": plot_function,
+                    "form_data": form_data
+                }))
+
+                new_url = f"/render-plot/{unique_id}"
+                return redirect(new_url)
+            else:
+                return jsonify({"error": "Invalid plot function selection"}), 400
+
+        else:
+            return jsonify({"error": "Plot function not selected"}), 400
+
+    else:  # GET request handling
+        print("GET:::::::::::::::::::::::::::::::::")
+        table_identifiers = request.args.get('tables', '')
+        if not table_identifiers:
+            return jsonify({"error": "No tables specified"}), 400
+        session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
+        print("GET tables:", session['tables'])
+        return render_template('choose_plot_function_form.html', tables=session['tables'])
+'''
+'''        
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):
 
@@ -452,7 +586,7 @@ def view_plot(database, table_name, plot_function):
         plot_function_choice = request.form.get('plot_choice')
         if plot_function_choice:
             plot_function = plot_function_choice
-            if plot_function == "generate_plot" or "generate_plot_combined" or "generate_plot_separate":
+            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
                 return render_template(f'input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)             
             else:
                 return jsonify({"error": "choice not selected"}), 400
@@ -489,7 +623,7 @@ def view_plot(database, table_name, plot_function):
     else:  # GET request handling
         print("GET:::::::::::::::::::::::::::::::::")
         return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
-
+'''
 '''
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):
@@ -893,3 +1027,13 @@ def list_items():
         return jsonify(items)
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/list-tables')
+def list_tables():
+    # Get databases from query parameters and split into list
+    databases = request.args.get('databases').split(',')
+    db_tables = {}
+    for db in databases:
+        db_tables[db] = fetch_tables(db)  # Fetch tables from each database
+
+    return render_template('list_tables_new.html', db_tables=db_tables, databases=databases)

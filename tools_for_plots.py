@@ -231,7 +231,8 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
 
         for j, subgroup in enumerate(group):
             state_index = selected_groups[j]
-            label = f'{table_names[i]} state{state_index}' if f'{table_names[i]} state{state_index}' not in added_to_legend else None
+            table_name = table_names[i]
+            label = table_name if table_name not in added_to_legend else None
             if label:
                 added_to_legend.add(label)
 
@@ -316,14 +317,16 @@ def calculate_ber_between_selected_states(transformed_data, selected_groups, tab
         # Calculate the point of closest approach between the two curves
         idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
         ber = np.abs(interp_y1[idx_closest])
-        sigma_ber = sp_stats.norm.cdf(-ber)  # Convert ber to sigma level
-        ppm_ber = sigma_to_ppm(sigma_ber)  # Convert sigma to ppm
-        ber_results.append((table_name, f'state{start_state} to state{end_state}', sigma_ber, ppm_ber))
+        ppm_ber = sigma_to_ppm(ber)  # Convert sigma to ppm
+        ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
 
         # Plot interpolation curves
         plt.plot(common_x, interp_y1, linestyle='--', color=color, alpha=1)
         plt.plot(common_x, interp_y2, linestyle='--', color=color, alpha=1)
-    
+
+        # Mark the intersection point with a scatter plot
+        #plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
+
 def get_group_data_new(table_name, selected_groups, database_name, sub_array_size):
     connection = create_connection(database_name)
     query = f"SELECT * FROM `{table_name}`"

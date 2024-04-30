@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}List of Tables from Multiple Databases{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="mt-3 mb-3">
+        <button class="btn btn-primary" id="selectAll">Select All</button>
+        <button class="btn btn-secondary" id="deselectAll">Deselect All</button>
+        <button class="btn btn-danger" id="deleteSelected">Delete Selected</button>
+        <button class="btn btn-info" id="plotSelected">Plot Selected</button>
+    </div>
+
+    {% for db_name, tables in db_tables.items() %}
+        <h4>Tables in {{ db_name }}: {{ tables|length }}</h4>
+        <ul id="table-list-{{ db_name }}" class="list-group no-bullets">
+            {% for table in tables %}
+                <li data-table-name="{{ table['table_name'] }}" data-database-name="{{ db_name }}" class="table-item">
+                    <input type="checkbox" id="select-table-{{ loop.index }}" class="table-checkbox" data-table-name="{{ table['table_name'] }}" data-database-name="{{ db_name }}">
+                    <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('view_table', database=db_name, table_name=table['table_name']) }}'">View</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ db_name }}', '{{ table['table_name'] }}')">Delete This Table</button>
+                    <span>{{ table['table_name'] }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</div>
+
+<script>
+    document.getElementById('selectAll').addEventListener('click', function() {
+        document.querySelectorAll('.table-checkbox').forEach(checkbox => checkbox.checked = true);
+    });
+
+    document.getElementById('deselectAll').addEventListener('click', function() {
+        document.querySelectorAll('.table-checkbox').forEach(checkbox => checkbox.checked = false);
+    });
+
+    document.getElementById('deleteSelected').addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+        let tableRecords = [];
+
+        checkboxes.forEach(function(checkbox) {
+            tableRecords.push({
+                database: checkbox.getAttribute('data-database-name'),
+                tableName: checkbox.getAttribute('data-table-name')
+            });
+        });
+
+        // Implement delete logic here, possibly calling server-side with fetch API
+        console.log('Delete these tables:', tableRecords);
+    });
+
+    document.getElementById('plotSelected').addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+        let tableIdentifiers = [];
+        
+        checkboxes.forEach(function(checkbox) {
+            let dbName = checkbox.getAttribute('data-database-name');
+            let tableName = checkbox.getAttribute('data-table-name');
+            tableIdentifiers.push(dbName + '.' + tableName); // Combine database and table name
+        });
+        
+        if (tableIdentifiers.length > 0) {
+            let baseUrl = "{{ url_for('view_plot', plot_function='plot_function') }}";
+            baseUrl += '?tables=' + encodeURIComponent(tableIdentifiers.join(',')); // Append tables as a query parameter
+            
+            window.location.href = baseUrl;
+        } else {
+            alert('Please select at least one table to plot.');
+        }
+    });
+</script>
+
+<style>
+    .no-bullets {
+        list-style-type: none; /* Removes the bullets */
+        padding-left: 0; /* Removes the padding which is also part of the default list style */
+    }
+</style>
+
+{% endblock %}
