@@ -385,6 +385,48 @@ def render_plot(unique_id):
     stored_data_json = redis_client.get(unique_id)
     if not stored_data_json:
         return "Error: Invalid ID or Data Expired", 404
+
+    stored_data = json.loads(stored_data_json)
+
+    database_tables = stored_data["database_tables"]
+    plot_function = stored_data["plot_function"]
+    form_data = stored_data["form_data"]
+
+    # Assuming generate_plot_functions is a dictionary mapping plot function names to their implementations
+    generate_plot_function = generate_plot_functions.get(plot_function)
+    if generate_plot_function is None:
+        return "Error: Invalid plot function selection", 400
+
+    try:
+        # Generate a combined plot for all specified tables
+        all_table_names = [table_name for _, table_name in database_tables]
+        plot_data = generate_plot_function(all_table_names, form_data=form_data)
+        
+        if not isinstance(plot_data, list):
+            plot_data = [plot_data]
+
+        # Cache the generated plot data for future requests
+        cache.set(cache_key, plot_data, timeout=None)
+
+        return render_template('plot.html', plot_data=plot_data)
+    except Exception as e:
+        return f"Error: {e}", 500
+
+'''
+@app.route('/render-plot/<unique_id>')
+def render_plot(unique_id):
+    # Attempt to fetch cached plot data using unique_id as the cache key
+    cache_key = f"plot_data_{unique_id}"
+    cached_plot_data = cache.get(cache_key)
+
+    if cached_plot_data:
+        # If cached data is found, use it to render the plot directly
+        return render_template('plot.html', plot_data=cached_plot_data)
+
+    # If no cache is found, retrieve the stored data from Redis
+    stored_data_json = redis_client.get(unique_id)
+    if not stored_data_json:
+        return "Error: Invalid ID or Data Expired", 404
     
     stored_data = json.loads(stored_data_json)
 
@@ -412,7 +454,7 @@ def render_plot(unique_id):
         return render_template('plot.html', plot_data=plot_data_list)
     except Exception as e:
         return f"Error: {e}", 500
-
+'''
 '''
 @app.route('/render-plot/<unique_id>')
 def render_plot(unique_id):
@@ -486,40 +528,7 @@ import numpy as np
 from my_flask_app import redis_client
 import json
 
-@app.route('/view-plot', methods=['GET', 'POST'])
-def view_plot():
-    if request.method == "POST":
-        print("POST:::::::::::::::::::::::::::::::::")
-        print("Session data on POST:", session)
-        tables = session.get('tables', [])
-        if not tables:
-            print("Error: No tables in session")
-            return jsonify({"error": "No tables specified"}), 400
-        print("POST tables:", tables)
 
-        plot_function_choice = request.form.get('plot_choice')
-        if plot_function_choice:
-            plot_function = plot_function_choice
-        else:
-            return jsonify({"error": "Plot function not selected"}), 400
-
-        # Handling plot function choices
-        if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
-            # Handle the data according to plot function choice
-            handle_plot_function(plot_function, tables)
-        else:
-            return jsonify({"error": "Invalid plot function selection"}), 400
-
-    else:  # GET request handling
-        print("GET:::::::::::::::::::::::::::::::::")
-        table_identifiers = request.args.get('tables', '')
-        if not table_identifiers:
-            return jsonify({"error": "No tables specified"}), 400
-        session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
-        print("GET tables:", session['tables'])
-        return render_template('choose_plot_function_form.html', tables=session['tables'])
-
-'''
 @app.route('/view-plot/<plot_function>', methods=['GET', 'POST'])
 def view_plot(plot_function):
 
@@ -575,7 +584,7 @@ def view_plot(plot_function):
         session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
         print("GET tables:", session['tables'])
         return render_template('choose_plot_function_form.html', tables=session['tables'])
-'''
+
 '''        
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):

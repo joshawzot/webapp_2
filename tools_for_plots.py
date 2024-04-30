@@ -327,6 +327,110 @@ def calculate_ber_between_selected_states(transformed_data, selected_groups, tab
         # Mark the intersection point with a scatter plot
         #plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
 
+from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
+def get_group_data_new(table_name, selected_groups, sub_array_size):
+    print("Starting get_group_data_new function")
+    conn = create_connection()  # Connect without specifying the database.
+    cursor = conn.cursor()
+    databases = get_all_databases(cursor)
+    print("Connected to the initial database")
+    print("Databases available:", databases)
+
+    for database_name in databases:
+        print(f"Attempting to connect to database: {database_name}")
+        connection = create_connection(database_name)
+        try:
+            db_cursor = connection.cursor()
+            print(f"Connected to database {database_name}. Checking for table {table_name}")
+            db_cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+            if db_cursor.fetchone():
+                print(f"Table {table_name} found in database {database_name}. Executing query.")
+                query = f"SELECT * FROM `{table_name}`"
+                db_cursor.execute(query)
+                data = db_cursor.fetchall()
+                print(f"Query executed successfully. Rows fetched: {len(data)}")
+            else:
+                print(f"Table {table_name} not found in database {database_name}")
+            db_cursor.close()
+        except Exception as e:
+            print(f"Error in database {database_name}: {e}")
+        finally:
+            if connection:
+                print(f"Closing connection to database {database_name}")
+                connection.close()
+
+    cursor.close()
+    conn.close()
+    print("Closed all connections. Function complete.")
+
+    # Convert fetched data to a NumPy array for easier manipulation
+    data_np = np.array(data)  # Assume the scaling factor was removed for clarity
+
+    # Check if the average of data_np is more than 1, then scale data_np by multiplying it with 1e-6
+    if np.mean(data_np) > 1:
+        data_np = data_np * 1e-6
+
+    groups = []
+    groups_stats = []  # List to store statistics for each group
+
+    rows_per_group, cols_per_group = sub_array_size
+    total_rows, total_cols = data_np.shape
+    print("total rows:", total_rows)
+    print("total cols:", total_cols)
+
+    num_row_groups = total_rows // rows_per_group
+    num_col_groups = total_cols // cols_per_group
+    num_of_groups = num_col_groups * num_row_groups
+    partial_rows = total_rows % rows_per_group  # Check if there's a partial row group
+    partial_cols = total_cols % cols_per_group  # Check if there's a partial column group
+    print(f"num_row_groups = {num_row_groups}, num_col_groups = {num_col_groups}, num_of_groups = {num_of_groups}, partial_rows = {partial_rows}, partial_cols = {partial_cols}")
+
+    group_idx = 0  # Initialize group index
+    real_selected_groups = []
+
+    for i in range(num_row_groups + (1 if partial_rows > 0 else 0)):
+        for j in range(num_col_groups + (1 if partial_cols > 0 else 0)):
+            start_row = i * rows_per_group
+            end_row = (i + 1) * rows_per_group if i < num_row_groups else total_rows
+
+            start_col = j * cols_per_group
+            end_col = (j + 1) * cols_per_group if j < num_col_groups else total_cols
+
+            # Check if this group is selected
+            if group_idx in selected_groups:
+                print("group_idx:", group_idx)
+                real_selected_groups.append(group_idx)
+                print(f"Group {group_idx}: Start Row: {start_row}, End Row: {end_row}, Start Col: {start_col}, End Col: {end_col}")
+
+                try:
+                    group = data_np[start_row:end_row, start_col:end_col]
+                    flattened_group = group.flatten()
+
+                    # Filter out negative values
+                    positive_flattened_group = flattened_group[flattened_group >= 0] * 1e6
+
+                    groups.append(positive_flattened_group)
+
+                    # Calculate statistics for the positive values
+                    if len(positive_flattened_group) > 0:  # Ensure there are positive values to analyze
+                        average = round(np.mean(positive_flattened_group), 2)
+                        std_dev = round(np.std(positive_flattened_group), 2)
+                        outlier_percentage = round(np.sum(np.abs(positive_flattened_group - average) > 2.698 * std_dev) / len(positive_flattened_group) * 100, 2)
+                        groups_stats.append((table_name, group_idx, average, std_dev, outlier_percentage))
+                    else:
+                        print(f"Group {group_idx} has no positive values for analysis.")
+                except IndexError as e:
+                    print(f"Error accessing data slice: {e}")
+
+            group_idx += 1  # Increment group index after each inner loop
+        print("i:", i)
+
+    close_connection()
+    
+    #data_np.shape[1] means columns   #data_np.shape[0] means rows
+    return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
+
+'''
 def get_group_data_new(table_name, selected_groups, database_name, sub_array_size):
     connection = create_connection(database_name)
     query = f"SELECT * FROM `{table_name}`"
@@ -400,7 +504,7 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
     
     #data_np.shape[1] means columns   #data_np.shape[0] means rows
     return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
-
+'''
 import itertools
 
 ''' Minimum Average Overlap: The primary criterion is to find the combination of groups that has the lowest average overlap among the sequential pairs within that combination. This determines which groups are considered best in terms of minimizing the intersection of data points.
@@ -1290,36 +1394,68 @@ def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, f
 
     return encoded_image
 
-def create_table_figure(table_data, title, figsize=(12, 8)):
-    fig, ax = plt.subplots(figsize=figsize)
-    ax.axis('tight')
-    ax.axis('off')
-    table = ax.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.2]*len(table_data[0]))
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)
-    ax.set_title(title, fontsize=14)
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+def plot_ber_tables(ber_results, table_names):
+    # Define common setup for the figure
+    def setup_figure():
+        fig, ax = plt.subplots(figsize=(12, 8))
+        ax.axis('tight')
+        ax.axis('off')
+        return fig, ax
+    
+    # Initialize headers
+    sigma_headers = ["State/Transition"] + [name for name in table_names]
+    ppm_headers = ["State/Transition"] + [name for name in table_names]
 
+    # Initialize data storage
+    sigma_data = [sigma_headers]
+    ppm_data = [ppm_headers]
+
+    # Group by state/transition
+    grouped_data = {}
+    for entry in ber_results:
+        key = entry[1]  # Use the transition as a unique key
+        if key not in grouped_data:
+            grouped_data[key] = []
+        grouped_data[key].append((entry[2], entry[3]))  # Append sigma and ppm values
+
+    # Populate the sigma and ppm data lists
+    for key, values in grouped_data.items():
+        sigma_row = [key]  # Start row with the transition
+        ppm_row = [key]
+        for value in values:
+            sigma, ppm = value
+            sigma_row.append(f"{sigma:.4f}")
+            ppm_row.append(f"{ppm:.0f}")
+        sigma_data.append(sigma_row)
+        ppm_data.append(ppm_row)
+
+    column_widths1 = get_column_widths(sigma_data)
+    column_widths2 = get_column_widths(ppm_data)
+    
+    # Plot Sigma Values Table
+    fig, ax = setup_figure()
+    sigma_table = ax.table(cellText=sigma_data, loc='center', colWidths=column_widths1, cellLoc='center')
+    sigma_table.auto_set_font_size(False)
+    sigma_table.set_fontsize(10)
+    sigma_table.scale(1, 1.5)
+    plt.title("BER Sigma Values", fontsize=14)
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
-    encoded_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+    encoded_sigma_image = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig)
-    return encoded_image
 
-def plot_ber_tables(ber_results, table_names):
-    # Initialize table headers and data list
-    headers = ["Table Name", "Transition", "Sigma Value", "PPM Value"]
-    combined_table_data = [headers]
+    # Plot PPM Values Table
+    fig, ax = setup_figure()
+    ppm_table = ax.table(cellText=ppm_data, loc='center', colWidths=column_widths2, cellLoc='center')
+    ppm_table.auto_set_font_size(False)
+    ppm_table.set_fontsize(10)
+    ppm_table.scale(1, 1.5)
+    plt.title("BER PPM Values", fontsize=14)
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded_ppm_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig)
 
-    # Populate the combined table data list
-    for result in ber_results:
-        table_name, transition, sigma, ppm = result
-        row = [table_name, transition, f"{sigma:.4f}", f"{ppm:.0f}"]
-        combined_table_data.append(row)
-
-    # Generate the combined table
-    encoded_combined_image = create_table_figure(combined_table_data, "Combined BER Sigma and PPM Values")
-
-    return encoded_combined_image
+    return encoded_sigma_image, encoded_ppm_image

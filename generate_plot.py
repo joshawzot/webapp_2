@@ -175,10 +175,8 @@ def get_colors(num_colors):
     norm = mcolors.Normalize(vmin=0, vmax=num_colors - 1)
     return [cmap(norm(i)) for i in range(num_colors)]
 
-def generate_plot(table_names, database_name, form_data):
-    # Ensure this connects to your database
-    connection = create_connection(database_name)
-
+def generate_plot(table_names, form_data):
+    print("table_names:", table_names)
     aggregated_groups_by_selected_group = {group: [] for group in form_data.get('selected_groups', [])}
     print("aggregated_groups_by_selected_group:", aggregated_groups_by_selected_group)
     selected_groups = form_data.get('selected_groups', [])
@@ -205,7 +203,7 @@ def generate_plot(table_names, database_name, form_data):
     
     # Process each table and collect data and statistics (only once)
     for table_name in table_names:
-        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size) #real selected_groups
+        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, sub_array_size) #real selected_groups
         print("selected_groups:", selected_groups)
         #print("groups:", groups)
         #print("stats:", stats)
@@ -246,7 +244,7 @@ def generate_plot(table_names, database_name, form_data):
             best_groups_append.append(best_groups)
             min_overlap_append.append(min_overlap)'''
 
-    #print("group_data:", group_data)
+    print("group_data:", group_data)
     #print("all_groups:", all_groups)
 
     print("aggregated_window_values:", aggregated_window_values)
@@ -255,9 +253,9 @@ def generate_plot(table_names, database_name, form_data):
         encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))'''
 
     #color map
-    for table_name in table_names:
+    #for table_name in table_names:
         # Retrieve the full 2D data matrix for the current table_name
-        data_matrix, data_matrix_size = get_full_table_data(table_name, database_name)
+        #data_matrix, data_matrix_size = get_full_table_data(table_name, database_name)
         
         # Plot the colormap for the retrieved data_matrix
         # colormap_image = plot_colormap(data_matrix, title=f"Colormap for {table_name}")
@@ -286,8 +284,9 @@ def generate_plot(table_names, database_name, form_data):
         ber_results.append(intersection)
 
     # Generate tables for visualizing BER results
-    encoded_image1 = plot_ber_tables(ber_results, table_names)
-    encoded_plots.append(encoded_image1)
+    encoded_sigma_image, encoded_ppm_image = plot_ber_tables(ber_results, table_names)
+    encoded_plots.append(encoded_sigma_image)
+    encoded_plots.append(encoded_ppm_image)
 
     #encoded_image1, encoded_image2 = plot_overlap_table(all_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups)
     #encoded_plots.append(encoded_image1)
