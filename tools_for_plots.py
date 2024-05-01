@@ -1395,46 +1395,50 @@ def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, f
     return encoded_image
 
 def plot_ber_tables(ber_results, table_names):
-    # Define common setup for the figure
     def setup_figure():
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.axis('tight')
         ax.axis('off')
         return fig, ax
     
-    # Initialize headers
-    sigma_headers = ["State/Transition"] + [name for name in table_names]
-    ppm_headers = ["State/Transition"] + [name for name in table_names]
-
-    # Initialize data storage
+    sigma_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+    ppm_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+    
     sigma_data = [sigma_headers]
     ppm_data = [ppm_headers]
 
-    # Group by state/transition
     grouped_data = {}
     for entry in ber_results:
-        key = entry[1]  # Use the transition as a unique key
+        key = entry[1]
         if key not in grouped_data:
             grouped_data[key] = []
-        grouped_data[key].append((entry[2], entry[3]))  # Append sigma and ppm values
+        grouped_data[key].append((entry[2], entry[3]))
 
-    # Populate the sigma and ppm data lists
     for key, values in grouped_data.items():
-        sigma_row = [key]  # Start row with the transition
+        sigma_row = [key]
         ppm_row = [key]
-        for value in values:
-            sigma, ppm = value
+        for sigma, ppm in values:
             sigma_row.append(f"{sigma:.4f}")
             ppm_row.append(f"{ppm:.0f}")
+        # Calculate and append row averages formatted to four decimal places
+        sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:]]):.4f}")
+        ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:]]):.0f}")
         sigma_data.append(sigma_row)
         ppm_data.append(ppm_row)
 
-    column_widths1 = get_column_widths(sigma_data)
-    column_widths2 = get_column_widths(ppm_data)
-    
-    # Plot Sigma Values Table
+    # Calculate column averages and append to data formatted to four decimal places
+    sigma_col_avg = ["Col Avg"]
+    ppm_col_avg = ["Col Avg"]
+    for col in range(1, len(sigma_data[0])):
+        sigma_col = [float(row[col]) for row in sigma_data[1:] if row[col] != "Col Avg"]
+        ppm_col = [float(row[col]) for row in ppm_data[1:] if row[col] != "Col Avg"]
+        sigma_col_avg.append(f"{np.mean(sigma_col):.4f}")
+        ppm_col_avg.append(f"{np.mean(ppm_col):.0f}")
+    sigma_data.append(sigma_col_avg)
+    ppm_data.append(ppm_col_avg)
+
     fig, ax = setup_figure()
-    sigma_table = ax.table(cellText=sigma_data, loc='center', colWidths=column_widths1, cellLoc='center')
+    sigma_table = ax.table(cellText=sigma_data, loc='center', cellLoc='center')
     sigma_table.auto_set_font_size(False)
     sigma_table.set_fontsize(10)
     sigma_table.scale(1, 1.5)
@@ -1445,9 +1449,8 @@ def plot_ber_tables(ber_results, table_names):
     encoded_sigma_image = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig)
 
-    # Plot PPM Values Table
     fig, ax = setup_figure()
-    ppm_table = ax.table(cellText=ppm_data, loc='center', colWidths=column_widths2, cellLoc='center')
+    ppm_table = ax.table(cellText=ppm_data, loc='center', cellLoc='center')
     ppm_table.auto_set_font_size(False)
     ppm_table.set_fontsize(10)
     ppm_table.scale(1, 1.5)
