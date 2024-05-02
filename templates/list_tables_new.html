@@ -211,7 +211,7 @@ function submitFiles() {
         });
         
         if (tableIdentifiers.length > 0) {
-            let baseUrl = "{{ url_for('view_plot', plot_function='plot_function') }}";
+            let baseUrl = "{{ url_for('view_plot_multi_database', plot_function='plot_function') }}";
             baseUrl += '?tables=' + encodeURIComponent(tableIdentifiers.join(',')); // Append tables as a query parameter
             
             window.location.href = baseUrl;

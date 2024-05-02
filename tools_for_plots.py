@@ -383,7 +383,7 @@ def calculate_ber_between_selected_states(transformed_data, selected_groups, tab
         #plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
 '''
 from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
-def get_group_data_new(table_name, selected_groups, sub_array_size):
+def get_group_data_new_multi_database(table_name, selected_groups, sub_array_size):
     print("Starting get_group_data_new function")
     conn = create_connection()  # Connect without specifying the database.
     cursor = conn.cursor()
@@ -485,7 +485,7 @@ def get_group_data_new(table_name, selected_groups, sub_array_size):
     #data_np.shape[1] means columns   #data_np.shape[0] means rows
     return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
 
-'''
+
 def get_group_data_new(table_name, selected_groups, database_name, sub_array_size):
     connection = create_connection(database_name)
     query = f"SELECT * FROM `{table_name}`"
@@ -559,7 +559,7 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
     
     #data_np.shape[1] means columns   #data_np.shape[0] means rows
     return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
-'''
+
 import itertools
 
 ''' Minimum Average Overlap: The primary criterion is to find the combination of groups that has the lowest average overlap among the sequential pairs within that combination. This determines which groups are considered best in terms of minimizing the intersection of data points.
