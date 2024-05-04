@@ -216,7 +216,7 @@ def sigma_to_ppm(sigma):
     ppm = tail_probability * 1_000_000
     return ppm
 
-#based on interpolation, not extrapolation 
+from scipy.interpolate import interp1d
 def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(15, 10)):
     # First plot: Transformed CDF
     plt.figure(figsize=figsize)
@@ -266,9 +266,59 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     # Second plot: Interpolated Curves for BER Calculation
     plt.figure(figsize=figsize)
     plt.xlim(global_x_min, global_x_max)  # Set the x-axis to match the original plot's range
-
     for i, transformed_data in enumerate(transformed_data_groups):
-        calculate_ber_between_selected_states(transformed_data, selected_groups, table_names[i], colors[i], ber_results)
+        print("i:", i)
+
+        for k in range(len(transformed_data) - 1):
+            x1, y1 = transformed_data[k]
+            x2, y2 = transformed_data[k + 1]
+
+            # Reverse the y-axis for the first of the two states being compared
+            y1 = -y1
+
+            # Define start and end states
+            start_state = selected_groups[k]
+            end_state = selected_groups[k + 1]
+
+            # Determine common range for interpolation
+            common_x_min = max(min(x1), min(x2))
+            common_x_max = min(max(x1), max(x2))
+
+            if common_x_min >= common_x_max:
+                # Extrapolate when no overlap
+                extrapolate_x_min = min(min(x1), min(x2))
+                extrapolate_x_max = max(max(x1), max(x2))
+                common_x = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
+                interp_func_y1 = interp1d(x1, y1, fill_value="extrapolate")
+                interp_func_y2 = interp1d(x2, y2, fill_value="extrapolate")
+                interp_y1 = interp_func_y1(common_x)
+                interp_y2 = interp_func_y2(common_x)
+
+                # Plotting the extrapolated parts with dashed lines
+                plt.plot(common_x, interp_y1, linestyle='--', color=colors[i], alpha=0.7, label=f'Extrapolated from State {start_state}')
+                plt.plot(common_x, interp_y2, linestyle='--', color=colors[i], alpha=0.7, label=f'Extrapolated to State {end_state}')
+            else:
+                # Interpolate within common range
+                common_x = np.linspace(common_x_min, common_x_max, num=1000)
+                interp_func_y1 = interp1d(x1, y1)
+                interp_func_y2 = interp1d(x2, y2)
+                interp_y1 = interp_func_y1(common_x)
+                interp_y2 = interp_func_y2(common_x)
+
+                # Plotting the interpolated parts with dotted lines
+                plt.plot(common_x, interp_y1, linestyle='-', color=colors[i], alpha=0.7, label=f'Interpolation from State {start_state}')
+                plt.plot(common_x, interp_y2, linestyle='-', color=colors[i], alpha=0.7, label=f'Interpolation to State {end_state}')
+
+            # Calculate the point of closest approach
+            idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
+            ber = np.abs(interp_y1[idx_closest])
+            ppm_ber = sigma_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
+
+            ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
+
+            # Mark the intersection point with a scatter plot
+            plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
+    #plt.legend() 
 
     plt.xlabel('Interpolated Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
@@ -290,60 +340,6 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
 
     return plot_data_transformed_cdf, plot_data_interpolated_cdf, converted_ber_results
 
-from scipy.interpolate import interp1d
-def calculate_ber_between_selected_states(transformed_data, selected_groups, table_name, color, ber_results):
-    plt.figure(figsize=(10, 6))  # Set up plot outside the loop to plot all data on one figure
-
-    for k in range(len(transformed_data) - 1):
-        x1, y1 = transformed_data[k]
-        x2, y2 = transformed_data[k + 1]
-
-        # Reverse the y-axis for the first of the two states being compared
-        y1 = -y1
-
-        # Define start and end states
-        start_state = selected_groups[k]
-        end_state = selected_groups[k + 1]
-
-        # Determine common range for interpolation
-        common_x_min = max(min(x1), min(x2))
-        common_x_max = min(max(x1), max(x2))
-
-        if common_x_min >= common_x_max:
-            # Extrapolate when no overlap
-            extrapolate_x_min = min(min(x1), min(x2))
-            extrapolate_x_max = max(max(x1), max(x2))
-            common_x = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
-            interp_func_y1 = interp1d(x1, y1, fill_value="extrapolate")
-            interp_func_y2 = interp1d(x2, y2, fill_value="extrapolate")
-            interp_y1 = interp_func_y1(common_x)
-            interp_y2 = interp_func_y2(common_x)
-
-            # Plotting the extrapolated parts with dashed lines
-            plt.plot(common_x, interp_y1, linestyle='--', color=color, alpha=0.7, label=f'Extrapolated from State {start_state}')
-            plt.plot(common_x, interp_y2, linestyle='--', color=color, alpha=0.7, label=f'Extrapolated to State {end_state}')
-        else:
-            # Interpolate within common range
-            common_x = np.linspace(common_x_min, common_x_max, num=1000)
-            interp_func_y1 = interp1d(x1, y1)
-            interp_func_y2 = interp1d(x2, y2)
-            interp_y1 = interp_func_y1(common_x)
-            interp_y2 = interp_func_y2(common_x)
-
-            # Plotting the interpolated parts with dotted lines
-            plt.plot(common_x, interp_y1, linestyle='-', color=color, alpha=0.7, label=f'Interpolation from State {start_state}')
-            plt.plot(common_x, interp_y2, linestyle='-', color=color, alpha=0.7, label=f'Interpolation to State {end_state}')
-
-        # Calculate the point of closest approach
-        idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
-        ber = np.abs(interp_y1[idx_closest])
-        ppm_ber = sigma_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
-
-        ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
-
-        # Mark the intersection point with a scatter plot
-        plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
-    plt.legend() 
 '''        
 def calculate_ber_between_selected_states(transformed_data, selected_groups, table_name, color, ber_results):
     for k in range(len(transformed_data) - 1):
@@ -1451,7 +1447,7 @@ def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, f
 
 def plot_ber_tables(ber_results, table_names):
     def setup_figure():
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(15, 10))
         ax.axis('tight')
         ax.axis('off')
         return fig, ax

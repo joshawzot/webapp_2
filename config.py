@@ -9,8 +9,8 @@ APP_SECRET_KEY = '1234'
 ENG = True
 
 #Analyze type
-MULTI_DATABASE_ANALYSIS = True
-#MULTI_DATABASE_ANALYSIS = False
+#MULTI_DATABASE_ANALYSIS = True
+MULTI_DATABASE_ANALYSIS = False
 
 # Switch for local or RDS MySQL
 LOCAL_DB = False  # Set to False for using AWS RDS

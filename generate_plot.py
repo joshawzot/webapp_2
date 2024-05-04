@@ -402,7 +402,7 @@ else:
 
         #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
         #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])
-        
+                
         plot_data_original, plot_data_interpo, intersections = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
         encoded_plots.append(plot_data_original)
         encoded_plots.append(plot_data_interpo)
@@ -415,7 +415,7 @@ else:
             print("intersections:")
             print(intersection)
             ber_results.append(intersection)
-
+        
         # Generate tables for visualizing BER results
         encoded_sigma_image, encoded_ppm_image = plot_ber_tables(ber_results, table_names)
         encoded_plots.append(encoded_sigma_image)

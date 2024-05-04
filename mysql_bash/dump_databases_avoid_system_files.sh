@@ -12,7 +12,10 @@ mysql -h "$HOST" -u "$USER" -p"$PASSWORD" -e "SHOW DATABASES;" | grep -Ev "(Data
 
 # Loop through each database and dump it
 while read DB; do
-    mysqldump -h "$HOST" -P 3306 -u "$USER" -p"$PASSWORD" --databases "$DB" >> all_databases_backup.sql
+    #mysqldump -h "$HOST" -P 3306 -u "$USER" -p"$PASSWORD" --databases "$DB" >> all_databases_backup.sql
+    #Add date at the end of the dump file and specify dump directory
+    mysqldump -h "$HOST" -P 3306 -u "$USER" -p"$PASSWORD" --databases "$DB" >> "/home/ubuntu/backup_sql/all_databases_backup_$(date +\%Y-\%m-\%d).sql"
+
 done < "$DB_LIST"
 
 # Clean up
