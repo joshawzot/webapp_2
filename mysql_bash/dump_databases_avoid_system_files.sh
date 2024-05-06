@@ -1,9 +1,14 @@
 #!/bin/bash
 
 # MySQL credentials
-HOST='webapp.cdecmst6qwog.us-east-2.rds.amazonaws.com'
-USER='admin'
-PASSWORD='Aa11720151015'
+#HOST='webapp.cdecmst6qwog.us-east-2.rds.amazonaws.com'
+#USER='admin'
+#PASSWORD='Aa11720151015'
+
+HOST='localhost'
+USER='root'
+PASSWORD='password'
+
 # Temporary file to store the database list
 DB_LIST='db_list.txt'
 

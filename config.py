@@ -13,8 +13,8 @@ ENG = True
 MULTI_DATABASE_ANALYSIS = False
 
 # Switch for local or RDS MySQL
-LOCAL_DB = False  # Set to False for using AWS RDS
-#LOCAL_DB = True
+#LOCAL_DB = False  # Set to False for using AWS RDS
+LOCAL_DB = True
 
 # Initialize DB_CONFIG
 DB_CONFIG = {}
