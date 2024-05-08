@@ -31,7 +31,7 @@ from flask import Flask, request, make_response
 #------------------------------------------------------------------------
 # Custom module imports
 from my_flask_app import app, cache
-from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
+from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2, get_csv_from_table
 from utilities import sanitize_table_name, validate_filename, render_results, get_form_data_generate_plot, process_file
 #from generate_plot_vertical_xn import generate_plot_vertical_xn
 #from generate_plot_horizontal_boxplotsigma_xn import generate_plot_horizontal_boxplotsigma_xn
@@ -1012,3 +1012,22 @@ def list_tables():
         db_tables[db] = fetch_tables(db)  # Fetch tables from each database
 
     return render_template('list_tables_new.html', db_tables=db_tables, databases=databases)
+
+@app.route('/download_csv')
+def download_csv():
+    database = request.args.get('database')
+    table_name = request.args.get('table_name')
+
+    try:
+        # Generate the CSV data
+        csv_data = get_csv_from_table(database, table_name)
+        if csv_data is None:
+            return "Error generating CSV file", 500
+
+        # Create a response with the CSV data as a downloadable file
+        response = make_response(csv_data)
+        response.headers['Content-Disposition'] = f'attachment; filename={table_name}.csv'
+        response.mimetype = 'text/csv'
+        return response
+    except Exception as e:
+        return str(e), 500

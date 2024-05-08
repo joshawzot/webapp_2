@@ -403,3 +403,41 @@ def move_tables_2(source_db, target_db, table_name):
     finally:
         cursor.close()
         conn.close()
+
+import csv
+import io
+
+def get_csv_from_table(database, table_name):
+    connection = create_connection(database)
+    if connection is None:
+        raise Exception("Failed to connect to the database.")
+
+    cursor = connection.cursor()
+    try:
+        # Construct the SQL query to fetch all data from the specified table
+        query = f"SELECT * FROM `{table_name}`;"
+        cursor.execute(query)
+
+        # Use StringIO to capture CSV output
+        output = io.StringIO()
+        csv_writer = csv.writer(output)
+
+        # Write header (column names)
+        column_headers = [i[0] for i in cursor.description]
+        csv_writer.writerow(column_headers)
+
+        # Write data rows
+        for row in cursor.fetchall():
+            csv_writer.writerow(row)
+
+        # Get CSV string from StringIO
+        csv_string = output.getvalue()
+        output.close()
+
+        return csv_string
+    except Exception as e:
+        print(f"Error fetching data from table {table_name}: {e}")
+        return None
+    finally:
+        cursor.close()
+        connection.close()
