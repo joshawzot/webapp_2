@@ -213,7 +213,7 @@ def sigma_to_ppm(sigma):
     # Calculate the area in the tail beyond the sigma value on one side of the distribution
     tail_probability = sp_stats.norm.sf(sigma)
     # Convert this probability to parts per million
-    ppm = tail_probability * 1_000_000
+    ppm = tail_probability * 1_000_000 * 2  # *2 for 2 sides of the curve
     return ppm
 
 from scipy.interpolate import interp1d
@@ -1513,3 +1513,51 @@ def plot_ber_tables(ber_results, table_names):
     plt.close(fig)
 
     return encoded_sigma_image, encoded_ppm_image
+
+'''import csv
+import io
+def plot_ber_tables(ber_results, table_names):
+    sigma_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+    ppm_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+    
+    sigma_data = [sigma_headers]
+    ppm_data = [ppm_headers]
+
+    grouped_data = {}
+    for entry in ber_results:
+        key = entry[1]
+        if key not in grouped_data:
+            grouped_data[key] = []
+        grouped_data[key].append((entry[2], entry[3]))
+
+    for key, values in grouped_data.items():
+        sigma_row = [key]
+        ppm_row = [key]
+        for sigma, ppm in values:
+            sigma_row.append(f"{sigma:.4f}")
+            ppm_row.append(f"{ppm:.0f}")
+        sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:]]):.4f}")
+        ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:]]):.0f}")
+        sigma_data.append(sigma_row)
+        ppm_data.append(ppm_row)
+
+    sigma_col_avg = ["Col Avg"]
+    ppm_col_avg = ["Col Avg"]
+    for col in range(1, len(sigma_data[0])):
+        sigma_col = [float(row[col]) for row in sigma_data[1:] if row[col] != "Col Avg"]
+        ppm_col = [float(row[col]) for row in ppm_data[1:] if row[col] != "Col Avg"]
+        sigma_col_avg.append(f"{np.mean(sigma_col):.4f}")
+        ppm_col_avg.append(f"{np.mean(ppm_col):.0f}")
+    sigma_data.append(sigma_col_avg)
+    ppm_data.append(ppm_col_avg)
+
+    # Generate CSV formatted string for sigma and ppm
+    sigma_csv = io.StringIO()
+    ppm_csv = io.StringIO()
+    sigma_writer = csv.writer(sigma_csv)
+    ppm_writer = csv.writer(ppm_csv)
+    
+    sigma_writer.writerows(sigma_data)
+    ppm_writer.writerows(ppm_data)
+    
+    return sigma_csv.getvalue(), ppm_csv.getvalue()'''

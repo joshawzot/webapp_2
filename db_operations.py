@@ -4,17 +4,18 @@ from config import DB_CONFIG  # must have
 
 connection = None
 
-''''def create_connection(database=None):
+def create_connection(database=None):
     global connection
     if connection is None or not connection.is_connected():
         connection = mysql.connector.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=MYSQL_PASSWORD,
+            host=DB_CONFIG['DB_HOST'],
+            user=DB_CONFIG['DB_USER'],
+            password=DB_CONFIG['MYSQL_PASSWORD_RAW'],
             database=database
         )
-    return connection'''
-
+    return connection
+'''
+#can't use with "sudo systemctl restart auto_start_python", why?
 from mysql.connector import pooling
 # Initialize the connection pool using DB_CONFIG values
 connection_pool = mysql.connector.pooling.MySQLConnectionPool(
@@ -43,7 +44,7 @@ def create_connection(database=None):
             cursor.execute(f"USE {database};")
             cursor.close()
     return connection
-
+'''
 def create_db(db_name):
     # Get a connection from the connection pool
     connection = create_connection()
