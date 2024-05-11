@@ -43,8 +43,10 @@ from utilities import sanitize_table_name, validate_filename, render_results, ge
 from generate_plot_endurance import generate_plot_endurance
 #from generate_plot_checkerboard import generate_plot_checkerboard
 from generate_plot import generate_plot
+from generate_plot_normal_combined import generate_plot_normal_combined
 from generate_plot_combined import generate_plot_combined
 from generate_plot_separate import generate_plot_separate
+from generate_plot_miao import generate_plot_miao
 #from generate_plot_64x64 import generate_plot_64x64
 #from generate_plot_VCR import generate_plot_VCR
 #from generate_plot_TCR import generate_plot_TCR
@@ -371,6 +373,7 @@ generate_plot_functions = {
     #"generate_plot_horizontal_sigma_xnxm": generate_plot_horizontal_sigma_xnxm,
     #"generate_plot_forming_voltage_map": generate_plot_forming_voltage_map,
     "generate_plot": generate_plot,
+    "generate_plot_normal_combined": generate_plot_normal_combined,
     "generate_plot_combined": generate_plot_combined,
     "generate_plot_separate": generate_plot_separate,
     #"generate_plot_64x64": generate_plot_64x64,
@@ -412,6 +415,38 @@ def render_plot_multi_database(unique_id):
         all_table_names = [table_name for _, table_name in database_tables]
         plot_data = generate_plot_function(all_table_names, form_data=form_data)
         
+        if not isinstance(plot_data, list):
+            plot_data = [plot_data]
+
+        # Cache the generated plot data for future requests
+        cache.set(cache_key, plot_data, timeout=None)
+
+        return render_template('plot.html', plot_data=plot_data)
+    except Exception as e:
+        return f"Error: {e}", 500
+
+@app.route('/render-plot-miao/<unique_id>')
+def render_plot_miao(unique_id):
+    # Attempt to fetch cached plot data using unique_id as the cache key
+    cache_key = f"plot_data_{unique_id}"
+    cached_plot_data = cache.get(cache_key)
+
+    if cached_plot_data:
+        # If cached data is found, use it to render the plot directly
+        return render_template('plot.html', plot_data=cached_plot_data)
+
+    # If no cache is found, retrieve the stored data from Redis
+    stored_data_json = redis_client.get(unique_id)
+    if not stored_data_json:
+        return "Error: Invalid ID or Data Expired", 404
+    
+    stored_data = json.loads(stored_data_json)
+
+    database = stored_data["database"]
+    table_name = stored_data["table_name"]
+
+    try:
+        plot_data = generate_plot_miao(table_name.split(','), database)
         if not isinstance(plot_data, list):
             plot_data = [plot_data]
 
@@ -550,7 +585,72 @@ def view_plot_multi_database(plot_function):
         session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
         print("GET tables:", session['tables'])
         return render_template('choose_plot_function_form.html', tables=session['tables'])
-        
+
+@app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
+def view_plot(database, table_name, plot_function):
+    print("view_plot")
+    if request.method == "POST":
+        print("POST:::::::::::::::::::::::::::::::::")
+        # Check if the user has made a plot function choice
+        plot_function_choice = request.form.get('plot_choice')
+        if plot_function_choice:
+            plot_function = plot_function_choice
+            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate", "generate_plot_normal_combined"]:
+                return render_template(f'input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)             
+            else:
+                return jsonify({"error": "choice not selected"}), 400
+
+        # Ensure plot_function has a value before proceeding
+        if plot_function:
+            print(f"plot_function: {plot_function}")  # Now plot_function should have a value
+            
+            # Conditional logic to handle form data based on plot_function
+            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate", "generate_plot_normal_combined"]:
+                form_data_handlers = {
+                    "generate_plot": get_form_data_generate_plot,
+                    "generate_plot_combined": get_form_data_generate_plot,
+                    "generate_plot_separate": get_form_data_generate_plot,
+                    "generate_plot_normal_combined": get_form_data_generate_plot,
+                }
+                form_data = form_data_handlers[plot_function](request.form)
+
+                # Store the form data with a unique identifier in Redis
+                unique_id = str(uuid.uuid4())
+                redis_client.set(unique_id, json.dumps({
+                    "database": database,
+                    "table_name": table_name,
+                    "plot_function": plot_function,
+                    "form_data": form_data
+                }))
+
+                new_url = f"/render-plot/{unique_id}"
+                return redirect(new_url)
+            else:
+                return jsonify({"error": "Invalid plot function selection"}), 400
+        else:
+            return jsonify({"error": "Plot function not selected"}), 400
+
+    else:  # GET request handling
+        #print('fuck')
+        #print(len(table_names))
+        table_names = table_name.split(',')
+        print(table_names)
+        if len(table_names) == 3 and all("miao" in name for name in table_names):
+            print('maio')
+            # Store the form data with a unique identifier in Redis
+            unique_id = str(uuid.uuid4())
+            redis_client.set(unique_id, json.dumps({
+                "database": database,
+                "table_name": table_name,
+            }))
+
+            new_url = f"/render-plot-miao/{unique_id}"
+            return redirect(new_url)
+        else: 
+            print("GET:::::::::::::::::::::::::::::::::")
+            return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
+
+'''
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):
     print("view_plot")
@@ -597,7 +697,7 @@ def view_plot(database, table_name, plot_function):
     else:  # GET request handling
         print("GET:::::::::::::::::::::::::::::::::")
         return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
-
+'''
 '''
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):

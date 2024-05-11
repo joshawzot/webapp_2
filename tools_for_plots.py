@@ -213,7 +213,7 @@ def sigma_to_ppm(sigma):
     # Calculate the area in the tail beyond the sigma value on one side of the distribution
     tail_probability = sp_stats.norm.sf(sigma)
     # Convert this probability to parts per million
-    ppm = tail_probability * 1_000_000 * 2  # *2 for 2 sides of the curve
+    ppm = tail_probability * 1_000_000
     return ppm
 
 from scipy.interpolate import interp1d
@@ -1561,3 +1561,118 @@ def plot_ber_tables(ber_results, table_names):
     ppm_writer.writerows(ppm_data)
     
     return sigma_csv.getvalue(), ppm_csv.getvalue()'''
+
+def plot_combined_window_analysis_table(aggregated_window_values, figsize=(12, 8)):
+    tables_order = sorted(set(table_name for (table_name, _), _ in aggregated_window_values.items()))
+
+    # Initialize an empty list to maintain the order of state pairs based on their appearance
+    state_pairs_order = []
+    for _, pair in aggregated_window_values.keys():
+        state_pair = f"State {pair[0]} & State {pair[1]}"
+        if state_pair not in state_pairs_order:
+            state_pairs_order.append(state_pair)
+
+    # Initialize combined data with zeros for all state pairs across all tables
+    combined_table_data = {state_pair: [0] * len(tables_order) for state_pair in state_pairs_order}
+
+    # Populate the combined table data with actual values
+    for (table_name, pair), value in aggregated_window_values.items():
+        state_pair = f"State {pair[0]} & State {pair[1]}"
+        table_index = tables_order.index(table_name)
+        combined_table_data[state_pair][table_index] = value
+
+    # Adding averages per state pair and per table
+    for state_pair in combined_table_data:
+        combined_table_data[state_pair].append(np.mean([float(v) for v in combined_table_data[state_pair]]))
+
+    # Adding averages row at the end
+    average_row = ['Average']
+    for col in range(len(tables_order)):
+        col_values = [float(combined_table_data[state_pair][col]) for state_pair in state_pairs_order]
+        average_row.append(np.mean(col_values))
+    average_row.append(np.mean(average_row[1:-1]))  # Calculate the overall average excluding the label
+
+    combined_table_data['Average'] = average_row
+
+    # Prepare table data with headers and rows
+    header = ["State Pair"] + tables_order + ["Average"]
+    table_data = [header]
+    table_data.extend([[state_pair] + [f"{float(val):.2f}" for val in values] for state_pair, values in combined_table_data.items() if state_pair != 'Average'])
+    # Ensure averages are also formatted to two decimal places
+    table_data.append([average_row[0]] + [f"{val:.2f}" for val in average_row[1:]])
+
+    # Plot combined table
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(8)
+    table.scale(1, 1.2)
+    ax.set_title('Window table 99% to 1%')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+
+    return encoded_image
+
+def calculate_window_values(groups, selected_groups):
+    """
+    Calculate the window value differences based on the selected groups for one table.
+    Assumes `groups` is a dictionary where keys are group IDs and values are lists or NumPy arrays of data points for each group.
+    """
+    #print("groups:", groups)
+    window_values = {}
+    for i in range(len(selected_groups) - 1):
+        group_id_a = selected_groups[i]
+        group_id_b = selected_groups[i + 1]
+
+        # Debug: Print the current groups being processed
+        print(f"Processing groups: {group_id_a} and {group_id_b}")
+
+        data_a = groups[group_id_a]
+        data_b = groups[group_id_b]
+
+        # Debug: Print sizes of the groups to ensure they're being accessed correctly
+        print(f"Size of group {group_id_a}: {len(data_a)}, Size of group {group_id_b}: {len(data_b)}")
+
+        percentile_99_a = np.percentile(data_a, 99)
+        percentile_1_b = np.percentile(data_b, 1)
+
+        # Debug: Print the calculated percentiles to verify correctness
+        print(f"99th percentile of group {group_id_a}: {percentile_99_a}")
+        print(f"1st percentile of group {group_id_b}: {percentile_1_b}")
+
+        window_value_difference =  percentile_1_b - percentile_99_a
+
+        # Debug: Print the window value difference
+        print(f"Window value difference between group {group_id_a} and {group_id_b}: {window_value_difference}")
+
+        window_values[(group_id_a, group_id_b)] = window_value_difference
+
+    # Debug: Print final window values dictionary
+    print("Final window values:", window_values)
+    
+    return window_values
+
+def normalize_selected_groups(selected_groups):
+    unique_sorted_elements = sorted(set(selected_groups))
+    element_to_index = {element: index for index, element in enumerate(unique_sorted_elements)}
+
+    # Also create a reverse mapping from normalized index to original group ID
+    index_to_element = {index: element for index, element in enumerate(unique_sorted_elements)}
+
+    normalized_groups = [element_to_index[element] for element in selected_groups]
+    
+    return normalized_groups, index_to_element
+
+def get_colors(num_colors):
+    """Generate a colormap and return the colors for the specified number of items."""
+    cmap = cm.get_cmap('viridis', num_colors)
+    norm = mcolors.Normalize(vmin=0, vmax=num_colors - 1)
+    return [cmap(norm(i)) for i in range(num_colors)]

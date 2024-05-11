@@ -6,21 +6,7 @@ from datetime import datetime
 from io import BytesIO
 import base64
 import re
-from tools_for_plots import (
-    calculate_statistics,
-    plot_boxplot,
-    get_group_data_2,
-    extract_date_time,
-    calculate_windows_between_clusters,
-    sort_table_names,
-    plot_statistics_table,
-    plot_transformed_cdf_figure,
-    plot_cdf_figure,
-    plot_histogram_density,
-    plot_histogram_figure,
-    plot_boxplot_figure
-)
-
+from tools_for_plots import *
 from datetime import datetime
 
 def extract_datetime_from_table_name(table_name):

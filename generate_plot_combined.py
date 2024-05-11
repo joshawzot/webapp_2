@@ -159,10 +159,11 @@ else:
         sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
         print("sub_array_size_raw:", sub_array_size_raw)
         sub_array_size = tuple(sub_array_size_raw)
-
+        print("B")
         # Collect and aggregate data from each table
         for table_name in table_names:
-            groups, stats, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
+            groups, stats, _, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
+            print('A')
             #print(groups)
             for group_index, group_data in enumerate(groups):
                 selected_group = selected_groups[group_index]
@@ -201,11 +202,6 @@ else:
         print("aggregated_groups:", aggregated_groups)
         # Instead of an aggregated_groups list, use a dictionary with selected_group IDs as keys.
         aggregated_groups_dict = {group: np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0}
-
-        # Update the call to pass aggregated_groups_dict instead of aggregated_groups
-        encoded_image1, encoded_image2 = plot_window_analysis_table(aggregated_groups_dict, selected_groups)
-        encoded_plots.append(encoded_image1)
-        encoded_plots.append(encoded_image2)
 
         return encoded_plots
 
