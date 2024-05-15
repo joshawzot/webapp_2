@@ -788,6 +788,7 @@ def view_plot(database, table_name, plot_function):
         new_url = f"/render-plot/{unique_id}"
         return redirect(new_url)
 '''
+
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
     if 'db_name' not in request.form:
@@ -822,6 +823,46 @@ def upload_file():
 
     return jsonify(results=results)
 
+'''
+@app.route('/upload-file', methods=['POST'])
+def upload_file():
+    if 'db_name' not in request.form:
+        return jsonify(error="No database selected"), 400
+
+    db_name = request.form['db_name']
+    engine = create_db_engine(db_name)
+
+    files = [f for f in request.files.getlist('files[]') if f.filename]
+    if not files:
+        return jsonify(error="No files selected"), 400
+
+    results = []
+    for file in files:
+        filename = sanitize_table_name(file.filename)
+        file_extension = filename.rpartition('_')[-1]
+        print("file_extension:", file_extension)
+        file_stream = BytesIO(file.read())
+
+        try:
+            raw_data = process_file(file_stream, file_extension, db_name)
+            if raw_data is not None:
+                metadata = MetaData()
+                table = Table(filename, metadata,
+                              Column('id', Integer, primary_key=True),
+                              Column('data', LargeBinary))
+                metadata.create_all(engine)
+
+                conn = engine.connect()
+                conn.execute(table.insert().values(data=raw_data))
+                results.append(f"{filename} uploaded successfully")
+            else:
+                results.append(f"Failed to upload {filename}. No data returned.")
+        except Exception as e:
+            error_msg = f"Error processing {filename}: {str(e)}"
+            results.append(error_msg)
+
+    return jsonify(results=results)
+'''
 @app.route('/delete-record/<database>/<table_name>', methods=['DELETE'])  # delete a table
 def delete_record(database, table_name):
     try:

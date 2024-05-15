@@ -320,9 +320,9 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5, label='BER Intersection Point' if k == 0 else "")
     #plt.legend() 
 
-    plt.xlabel('Interpolated Data Value', fontsize=12)
+    #plt.xlabel('Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Interpolated CDF Curves for BER Calculation')
+    plt.title('Interpolated/Extrapolated CDF Curves for BER Calculation')
     plt.grid(True)
 
     buf_interpolated_cdf = BytesIO()
@@ -1607,9 +1607,9 @@ def plot_combined_window_analysis_table(aggregated_window_values, figsize=(12, 8
     ax.axis('off')
     table = ax.table(cellText=table_data, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(8)
+    table.set_fontsize(12)
     table.scale(1, 1.2)
-    ax.set_title('Window table 99% to 1%')
+    #ax.set_title('Window table 99% to 1%')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
@@ -1622,43 +1622,31 @@ def plot_combined_window_analysis_table(aggregated_window_values, figsize=(12, 8
     return encoded_image
 
 def calculate_window_values(groups, selected_groups):
-    """
-    Calculate the window value differences based on the selected groups for one table.
-    Assumes `groups` is a dictionary where keys are group IDs and values are lists or NumPy arrays of data points for each group.
-    """
-    #print("groups:", groups)
-    window_values = {}
+    window_values_99_1 = {}
+    window_values_999_01 = {}
+
     for i in range(len(selected_groups) - 1):
         group_id_a = selected_groups[i]
         group_id_b = selected_groups[i + 1]
 
-        # Debug: Print the current groups being processed
-        print(f"Processing groups: {group_id_a} and {group_id_b}")
-
         data_a = groups[group_id_a]
         data_b = groups[group_id_b]
 
-        # Debug: Print sizes of the groups to ensure they're being accessed correctly
-        print(f"Size of group {group_id_a}: {len(data_a)}, Size of group {group_id_b}: {len(data_b)}")
-
+        # Calculate percentiles for both scenarios
         percentile_99_a = np.percentile(data_a, 99)
         percentile_1_b = np.percentile(data_b, 1)
+        percentile_999_a = np.percentile(data_a, 99.9)
+        percentile_01_b = np.percentile(data_b, 0.1)
 
-        # Debug: Print the calculated percentiles to verify correctness
-        print(f"99th percentile of group {group_id_a}: {percentile_99_a}")
-        print(f"1st percentile of group {group_id_b}: {percentile_1_b}")
+        # Calculate differences
+        window_value_difference_99_1 = percentile_1_b - percentile_99_a
+        window_value_difference_999_01 = percentile_01_b - percentile_999_a
 
-        window_value_difference =  percentile_1_b - percentile_99_a
+        # Store results
+        window_values_99_1[(group_id_a, group_id_b)] = window_value_difference_99_1
+        window_values_999_01[(group_id_a, group_id_b)] = window_value_difference_999_01
 
-        # Debug: Print the window value difference
-        print(f"Window value difference between group {group_id_a} and {group_id_b}: {window_value_difference}")
-
-        window_values[(group_id_a, group_id_b)] = window_value_difference
-
-    # Debug: Print final window values dictionary
-    print("Final window values:", window_values)
-    
-    return window_values
+    return window_values_99_1, window_values_999_01
 
 def normalize_selected_groups(selected_groups):
     unique_sorted_elements = sorted(set(selected_groups))
@@ -1676,3 +1664,52 @@ def get_colors(num_colors):
     cmap = cm.get_cmap('viridis', num_colors)
     norm = mcolors.Normalize(vmin=0, vmax=num_colors - 1)
     return [cmap(norm(i)) for i in range(num_colors)]
+
+def plot_combined_window_analysis_table_2(aggregated_window_values, figsize=(12, 8)):
+    # Initialize an empty list to maintain the order of state pairs based on their appearance
+    state_pairs_order = []
+    for pair in aggregated_window_values.keys():
+        state_pair = f"State {pair[0]} & State {pair[1]}"
+        if state_pair not in state_pairs_order:
+            state_pairs_order.append(state_pair)
+
+    # Initialize combined data with zeros for each state pair
+    combined_table_data = {state_pair: [aggregated_window_values[pair]] for state_pair, pair in zip(state_pairs_order, aggregated_window_values.keys())}
+
+    # Adding averages per state pair
+    for state_pair, pair in zip(state_pairs_order, aggregated_window_values.keys()):
+        combined_table_data[state_pair].append(np.mean([float(combined_table_data[state_pair][0])]))
+
+    # Adding averages row at the end
+    average_row = ['Average']
+    col_values = [float(combined_table_data[state_pair][0]) for state_pair in state_pairs_order]
+    average_row.append(np.mean(col_values))
+    average_row.append(average_row[1])  # The overall average is the same since there's only one column
+
+    combined_table_data['Average'] = average_row
+
+    # Prepare table data with headers and rows
+    header = ["State Pair", "Value", "Average"]
+    table_data = [header]
+    table_data.extend([[state_pair] + [f"{float(val):.2f}" for val in values] for state_pair, values in combined_table_data.items() if state_pair != 'Average'])
+    table_data.append([average_row[0]] + [f"{val:.2f}" for val in average_row[1:]])
+
+    # Plot combined table
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1, 1.2)
+    #ax.set_title('Window table 99% to 1%')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+
+    return encoded_image

@@ -173,9 +173,9 @@ else:
             normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
             print("normalized_groups:", normalized_groups)
             print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
-            window_values = calculate_window_values(groups, normalized_groups)
+            window_values_99, window_values_999 = calculate_window_values(groups, normalized_groups)
 
-            for pair, value in window_values.items():
+            for pair, value in window_values_99.items():
                 # Map normalized group pairs back to original group IDs
                 original_pair = (index_to_element[pair[0]], index_to_element[pair[1]])
                 aggregated_window_values[(table_name, original_pair)] = value
@@ -245,6 +245,7 @@ else:
             ber_results.append(intersection)
         
         # Generate tables for visualizing BER results
+        print("ber_results:", ber_results)
         encoded_sigma_image, encoded_ppm_image = plot_ber_tables(ber_results, table_names)
         encoded_plots.append(encoded_sigma_image)
         encoded_plots.append(encoded_ppm_image)

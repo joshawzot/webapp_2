@@ -242,6 +242,7 @@ def process_file(file_stream, file_extension, db_name):
             print(f"Error processing .npy file: {e}")
             df = pd.DataFrame()
 
+
     elif file_extension == "mat":
         # Reset the file stream to the beginning for reading
         file_stream.seek(0)
@@ -261,9 +262,26 @@ def process_file(file_stream, file_extension, db_name):
                 print(f"Error processing .mat file: {e}")
                 df = pd.DataFrame()
 
+    else:
+        raise ValueError(f"Unsupported file extension: {file_extension}")
+
     # Fallback for any unprocessed or empty data frames
     if df is None or df.empty:
         print("No data processed for the file, returning empty DataFrame")
         df = pd.DataFrame()
 
     return df
+
+'''def process_file(file_stream, file_extension, db_name):
+    file_stream.seek(0)
+    if file_extension == "npy":
+        try:
+            # Read the raw binary data from the file stream
+            raw_data = file_stream.read()
+            return raw_data
+        except Exception as e:
+            print(f"Error processing .npy file: {e}")
+            return None
+    else:
+        raise ValueError(f"Unsupported file extension: {file_extension}")
+        '''

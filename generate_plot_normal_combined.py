@@ -31,7 +31,7 @@ def plot_ber_tables_2(ber_results):
     fig_sigma, ax_sigma = setup_figure()
     sigma_table = ax_sigma.table(cellText=sigma_data, loc='center', cellLoc='center')
     sigma_table.auto_set_font_size(False)
-    sigma_table.set_fontsize(10)
+    sigma_table.set_fontsize(12)
     sigma_table.scale(1, 1.5)
     plt.title("Sigma Values Table")
 
@@ -45,7 +45,7 @@ def plot_ber_tables_2(ber_results):
     fig_ppm, ax_ppm = setup_figure()
     ppm_table = ax_ppm.table(cellText=ppm_data, loc='center', cellLoc='center')
     ppm_table.auto_set_font_size(False)
-    ppm_table.set_fontsize(10)
+    ppm_table.set_fontsize(12)
     ppm_table.scale(1, 1.5)
     plt.title("PPM Values Table")
 
@@ -75,12 +75,13 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
 
         cdf_values = (np.arange(1, len(sorted_data) + 1) - 0.5) / len(sorted_data)
         sigma_values = norm.ppf(cdf_values)
+
+        #label = f'Combined Group {group_names[i]}' if group_names[i] not in added_to_legend else ""
+        #if label:
+            #added_to_legend.add(label)
         
-        label = f'Combined Group {group_names[i]}' if group_names[i] not in added_to_legend else ""
-        if label:
-            added_to_legend.add(label)
-        
-        plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)], label=label)
+        #plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)], label=label)
+        plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)])
         plt.scatter(sorted_data, sigma_values, s=10, color=colors[i % len(colors)])
 
         transformed_data_groups.append((sorted_data, sigma_values))
@@ -93,42 +94,123 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
 
     buf_transformed_cdf = BytesIO()
     plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
-    plt.clf()  # Clear plot after saving
     buf_transformed_cdf.seek(0)
-    plot_data_original = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
+    plot_data_transformed_cdf = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
     buf_transformed_cdf.close()
+    plt.clf()
 
     # Begin second plot for interpolation
     plt.figure(figsize=figsize)
     plt.xlim(global_x_min, global_x_max)
-
     intersections = []
+    horizontal_line_y_value = []
 
-    for i, (sorted_data, sigma_values) in enumerate(transformed_data_groups[:-1]):
-        x1, y1 = sorted_data, -sigma_values
-        x2, y2 = transformed_data_groups[i + 1][0], transformed_data_groups[i + 1][1]
+    for i, (x1, y1) in enumerate(transformed_data_groups[:-1]):
+        y1 = -y1
+        x2, y2 = transformed_data_groups[i + 1]
+        print("min(x1):", min(x1))
+        print("min(x2):", min(x2))
+        print("max(x1):", max(x1))
+        print("max(x2):", max(x2))
 
         common_x_min = max(min(x1), min(x2))
         common_x_max = min(max(x1), max(x2))
 
-        if common_x_min < common_x_max:  # Valid overlap exists
-            common_x = np.linspace(common_x_min, common_x_max, num=1000)
-            interp_func_y1 = interp1d(x1, y1)
-            interp_func_y2 = interp1d(x2, y2)
+        if common_x_min >= common_x_max:
+            # Extrapolate when no overlap
+            extrapolate_x_min = min(min(x1), min(x2))
+            extrapolate_x_max = max(max(x1), max(x2))
+            common_x = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
+            print("common_x for extrapolation:", common_x)
+            interp_func_y1 = interp1d(x1, y1, fill_value="extrapolate")
+            interp_func_y2 = interp1d(x2, y2, fill_value="extrapolate")
             interp_y1 = interp_func_y1(common_x)
             interp_y2 = interp_func_y2(common_x)
 
+            # Plotting the extrapolated parts with dashed lines
+            plt.plot(common_x, interp_y1, linestyle='--', color=colors[i], alpha=0.7)
+            plt.plot(common_x, interp_y2, linestyle='--', color=colors[i], alpha=0.7)
+        else:
+            common_x_min_all = min(min(x1), min(x2))
+            common_x_max_all = max(max(x1), max(x2))
+            common_x_all = np.linspace(common_x_min_all, common_x_max_all, num=5000)
+
+            common_x = np.linspace(common_x_min, common_x_max, num=1000)
+            #print("common_x for interpolation:", common_x)
+            interp_func_y1 = interp1d(x1, y1)
+            interp_func_y2 = interp1d(x2, y2)
+
+            interp_func_y1_extrapolate = interp1d(x1, y1, fill_value="extrapolate")
+            interp_func_y2_extrapolate = interp1d(x2, y2, fill_value="extrapolate")
+
+            interp_y1 = interp_func_y1(common_x)
+            interp_y2 = interp_func_y2(common_x)
+            interp_y1_all = interp_func_y1_extrapolate(common_x_all)
+            interp_y2_all = interp_func_y2_extrapolate(common_x_all)
+
+            extrapolate_x_min = min(min(x1), min(x2))
+            extrapolate_x_max = max(min(x1), min(x2))
+
+            extrapolate_x_min_2 = min(max(x1), max(x2))
+            extrapolate_x_max_2 = max(max(x1), max(x2))
+
+            print("extrapolate_x_min:", extrapolate_x_min)
+            print("extrapolate_x_max:", extrapolate_x_max)
+            print("extrapolate_x_min_2:", extrapolate_x_min_2)
+            print("extrapolate_x_max_2:", extrapolate_x_max_2)
+
+            common_x_1 = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
+            common_x_2 = np.linspace(extrapolate_x_min_2, extrapolate_x_max_2, num=1000)
+            #print("common_x_1:", common_x_1)
+            #print("common_x_2:", common_x_2)
+            interp_y1_xxx = interp_func_y1(common_x_1)
+            interp_y1_xxx_2 = interp_func_y2(common_x_2)
+
+            # Plotting the extrapolated parts with dashed lines
+            plt.plot(common_x_1, interp_y1_xxx, linestyle=':', color=colors[i], alpha=0.7)
+            plt.plot(common_x_2, interp_y1_xxx_2, linestyle=':', color=colors[i], alpha=0.7)
+
+            # Plotting the interpolated parts with dotted lines
             plt.plot(common_x, interp_y1, linestyle='-', color=colors[i], alpha=0.7)
-            plt.plot(common_x, interp_y2, linestyle='-', color=colors[i + 1], alpha=0.7)
+            plt.plot(common_x, interp_y2, linestyle='-', color=colors[i], alpha=0.7)
 
-            idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
-            intersections.append((common_x[idx_closest], interp_y1[idx_closest]))
-            plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5)
+        idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
+        plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5)
+        intersections.append((common_x[idx_closest], interp_y1[idx_closest]))
 
-    plt.xlabel('Interpolated Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Interpolated CDF Curves for BER Calculation')
-    plt.grid(True)
+        # Existing calculation for the intersection
+        intersection_x = common_x[idx_closest]
+        intersection_y = interp_y1[idx_closest]
+        print(f"Debug: Intersection at (x={intersection_x}, y={intersection_y})")
+
+        # Calculate x-differences and plotting when they are about 2 units apart
+        target_x_diff = 2
+        tolerance = 0.1  # Smaller tolerance for precise calculation
+        line_drawn = False  # Flag to ensure only one line is drawn
+
+        for idx in range(len(common_x_all) - 1):
+            for jdx in range(idx + 1, len(common_x_all)):
+                x_diff = common_x_all[jdx] - common_x_all[idx]
+                #print("x_diff:", x_diff)
+                if abs(x_diff - target_x_diff) < tolerance:
+                    #print(f"Debug: x_diff = {x_diff}, idx = {idx}, jdx = {jdx}")  # Debug output
+                    if interp_y2_all[jdx] > interp_y1_all[idx]:  # Check divergence
+                        if not line_drawn:
+                            plt.hlines(y=interp_y2_all[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
+                            print(f"Debug: Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={interp_y2_all[jdx]}")
+                            horizontal_line_y_value.append(interp_y2_all[jdx])  # Store the y-value where the line is drawn
+                            line_drawn = True
+                            break
+            if line_drawn:
+                break
+
+        if not line_drawn:
+            print("No suitable points found to draw a horizontal line.")
+
+        #plt.xlabel('Data Value', fontsize=12)
+        plt.ylabel('Sigma (Standard deviations)', fontsize=12)
+        plt.title('Interpolated/Extrapolated CDF Curves for BER Calculation')
+        plt.grid(True)
 
     buf_interpolated_cdf = BytesIO()
     plt.savefig(buf_interpolated_cdf, format='png', bbox_inches='tight')
@@ -137,7 +219,9 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
     plot_data_interpo = base64.b64encode(buf_interpolated_cdf.getvalue()).decode('utf-8')
     buf_interpolated_cdf.close()
 
-    return plot_data_original, plot_data_interpo, intersections
+    #return plot_data_transformed_cdf, plot_data_interpo, intersections
+    print("horizontal_line_y_value:", horizontal_line_y_value)
+    return plot_data_transformed_cdf, plot_data_interpo, intersections, horizontal_line_y_value
 
 def plot_boxplot_2(data, group_names, figsize=(15, 10)):
     plt.figure(figsize=figsize) 
@@ -179,7 +263,7 @@ def plot_average_values_table_2(avg_values, group_names, figsize=(12, 8)):
 
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(8)
+    table.set_fontsize(12)
     table.scale(1, 1.2)
 
     plt.title('Average Values Table')
@@ -209,12 +293,47 @@ def plot_std_values_table_2(std_values, group_names, figsize=(12, 8)):
 
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(8)
+    table.set_fontsize(12)
     table.scale(1, 1.2)
 
     plt.title('Standard Deviation Values Table')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
+
+    return encoded_image
+
+def plot_2uS_table(ppm, selected_groups, figsize=(12, 8)):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('tight')
+    ax.axis('off')
+
+    # Specific pairs creation
+    if len(selected_groups) >= 2:
+        # Define specific pairs from selected_groups
+        pairs = [(selected_groups[i], selected_groups[i + 1]) for i in range(len(selected_groups) - 1)]
+        
+        # Generate table data using the defined pairs and ppm values
+        table_data = [[f"state{pair[0]} & state{pair[1]}", f"{ppm_val:.2f}"] for pair, ppm_val in zip(pairs, ppm)]
+    else:
+        # Fallback if not enough groups to form at least one pair
+        table_data = []
+
+    # Create the table
+    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1, 1.2)  # Adjust scale for better readability
+
+    # Set the plot title and adjust the plot
+    plt.title('2uS_ppm', fontsize=14, pad=15)
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.05)  # Adjust for title and better table fit
+
+    # Save the plot to a buffer
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
@@ -276,25 +395,35 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     # If colors were specifically tailored for table_names, you may need to redefine colors:
     colors = get_colors(len(group_data))  # Assuming get_colors() generates a sufficient number of colors
     # Adjusted function call
-    plot_data_original, plot_data_interpo, intersections = plot_transformed_cdf_3(all_groups, group_names, selected_groups, colors)
+    plot_data_original, plot_data_interpo, intersections, horizontal_line_y_value = plot_transformed_cdf_3(all_groups, group_names, selected_groups, colors)
+    print("intersections:", intersections)
+    print("horizontal_line_y_value:", horizontal_line_y_value)
+    print("selected_groups:", selected_groups)
+
+    tail_probability = sp_stats.norm.sf([abs(y) for y in horizontal_line_y_value])
+    ppm = tail_probability * 1_000_000
+    print("ppm:", ppm)
+    
+    table = plot_2uS_table(ppm, selected_groups)
+    encoded_plots.append(table)
     # Adding plots to the encoded_plots list
     encoded_plots.append(plot_data_original)
     encoded_plots.append(plot_data_interpo)
 
-    # Initialize the ber_results list
-    ber_results = []
-
-    # Instead of just printing, also append each intersection to the ber_results list
-    for intersection in intersections:
-        print("intersections:")
-        print(intersection)
-        ber_results.append(intersection)
-    
-    print(ber_results)
-    print("AAA")
-    # Generate tables for visualizing BER results
-    encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(ber_results)
+    encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(intersections)
     encoded_plots.append(encoded_sigma_image)
     encoded_plots.append(encoded_ppm_image)
+
+    normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
+    print("normalized_groups:", normalized_groups)
+    print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
+    window_values_99, window_values_999 = calculate_window_values(all_groups, normalized_groups)
+
+    #print("window_values:", window_values)
+    # Generate and append a single combined window analysis table plot
+    encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_99)
+    encoded_plots.append(encoded_window_analysis_plot)
+    encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_999)
+    encoded_plots.append(encoded_window_analysis_plot)
 
     return encoded_plots
