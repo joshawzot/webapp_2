@@ -226,7 +226,7 @@ else:
 
         # Generate plots for individual tables
         encoded_plots.append(plot_boxplot(group_data, table_names))
-        #encoded_plots.append(plot_histogram(group_data, table_names, colors))
+        encoded_plots.append(plot_histogram(group_data, table_names, colors))
 
         #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
         #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])

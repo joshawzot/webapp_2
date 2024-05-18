@@ -126,6 +126,7 @@ def fetch_tables(database):
     """Fetch table names, creation times, and dimensions from the database."""
     connection = create_connection(database)
     cursor = connection.cursor()
+    print("database:", database)
 
     # Query to fetch table names and creation times
     table_query = """

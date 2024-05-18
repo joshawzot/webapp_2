@@ -178,6 +178,7 @@ def flatten_sections(array_3d):
     return np.concatenate(slices)
 
 def process_mat_file(file_content):
+    print('process_mat_file')
     df = None
     mat_data = scipy.io.loadmat(BytesIO(file_content))
     for key in mat_data:
@@ -185,15 +186,18 @@ def process_mat_file(file_content):
             data = mat_data[key]
             print("data.shape", data.shape)
             if data.shape == (64, 64, 8) or data.shape == (64, 64, 4) or data.shape == (100, 64, 64):
-                flattened_data = flatten_sections(data)
                 df = pd.DataFrame(flattened_data)
-            elif data.shape == (64, 64):  # Handling 2D data
+            elif data.shape == (1, 64, 64):
+                flattened_data = data.squeeze()  # Flattening to (64, 64)
+                df = pd.DataFrame(flattened_data)
+            elif len(data.shape) == 2:  # Check if the data is 2D
                 df = pd.DataFrame(data)
             if df is not None:
                 break
     return df
 
 def process_h5py_file(file_stream):  #64x64
+    print('process_h5py_file')
     df = None
     with h5py.File(file_stream, 'r') as f:
         for key in f.keys():
@@ -227,21 +231,20 @@ def process_file(file_stream, file_extension, db_name):
         df = pd.DataFrame({'content': [content]})
 
     elif file_extension == "npy":
-        try:
-            # Load the .npy file into a numpy array
-            np_array = np.load(file_stream, allow_pickle=True)
-            # Convert the numpy array to a pandas DataFrame
-            if np_array.ndim == 1:
-                df = pd.DataFrame(np_array)
-            elif np_array.ndim == 2:
-                # For 2-dimensional arrays, we use the whole array to create the DataFrame
-                df = pd.DataFrame(data=np_array)
-            else:
-                raise ValueError("Numpy array is not 1-dimensional or 2-dimensional")
-        except Exception as e:
-            print(f"Error processing .npy file: {e}")
-            df = pd.DataFrame()
-
+            try:
+                # Load the .npy file into a numpy array
+                np_array = np.load(file_stream, allow_pickle=True)
+                # Convert the numpy array to a pandas DataFrame
+                if np_array.ndim == 1:
+                    df = pd.DataFrame(np_array)
+                elif np_array.ndim == 2:
+                    # For 2-dimensional arrays, we use the whole array to create the DataFrame
+                    df = pd.DataFrame(data=np_array)
+                else:
+                    raise ValueError("Numpy array is not 1-dimensional or 2-dimensional")
+            except Exception as e:
+                print(f"Error processing .npy file: {e}")
+                df = pd.DataFrame()
 
     elif file_extension == "mat":
         # Reset the file stream to the beginning for reading
@@ -272,16 +275,14 @@ def process_file(file_stream, file_extension, db_name):
 
     return df
 
-'''def process_file(file_stream, file_extension, db_name):
-    file_stream.seek(0)
-    if file_extension == "npy":
+    '''
+    elif file_extension == "npy":
         try:
-            # Read the raw binary data from the file stream
-            raw_data = file_stream.read()
-            return raw_data
+            # Load the .npy file into a numpy array
+            np_array = np.load(file_stream, allow_pickle=True)
+            # Convert the numpy array to binary data
+            binary_data = np_array.tobytes()
+            df = pd.DataFrame({'binary_data': [binary_data]})
         except Exception as e:
             print(f"Error processing .npy file: {e}")
-            return None
-    else:
-        raise ValueError(f"Unsupported file extension: {file_extension}")
-        '''
+            df = pd.DataFrame()'''

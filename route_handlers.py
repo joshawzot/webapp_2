@@ -320,9 +320,10 @@ def data_analysis():
 
     try:
         tables = fetch_tables(database)  # Retrieve table data from the database
-
+        
         # Prepare a comma-separated string of table names
         table_names = ','.join(table['table_name'] for table in tables)
+        print("table_names:", table_names)
 
         # Pass the necessary variables to the template
         if MULTI_DATABASE_ANALYSIS:
@@ -826,13 +827,19 @@ def upload_file():
 '''
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
-    if 'db_name' not in request.form:
-        return jsonify(error="No database selected"), 400
+    print("upload_file_ass")
 
     db_name = request.form['db_name']
-    engine = create_db_engine(db_name)
+    if not db_name:
+        return jsonify(error="No database selected"), 400
 
+    print(f"Using database: {db_name}")  # Log which database is being used
+    engine = create_db_engine(db_name)
+    print(f"Database engine URL: {engine.url}")  # Log the complete engine URL
+    
+    engine = create_db_engine(db_name)
     files = [f for f in request.files.getlist('files[]') if f.filename]
+
     if not files:
         return jsonify(error="No files selected"), 400
 
@@ -841,28 +848,44 @@ def upload_file():
         filename = sanitize_table_name(file.filename)
         file_extension = filename.rpartition('_')[-1]
         print("file_extension:", file_extension)
+        print("reading the file")
         file_stream = BytesIO(file.read())
 
         try:
-            raw_data = process_file(file_stream, file_extension, db_name)
-            if raw_data is not None:
-                metadata = MetaData()
-                table = Table(filename, metadata,
-                              Column('id', Integer, primary_key=True),
-                              Column('data', LargeBinary))
-                metadata.create_all(engine)
-
-                conn = engine.connect()
-                conn.execute(table.insert().values(data=raw_data))
-                results.append(f"{filename} uploaded successfully")
+            df = process_file(file_stream, file_extension, db_name)
+            if not df.empty:
+                print("not empty")
+                if file_extension == "npy":
+                    print("uploading npy")
+                    # Insert binary data into a BLOB column
+                    with engine.connect() as connection:
+                        # Create table
+                        sql_command = text(f"CREATE TABLE IF NOT EXISTS {filename} (id INT AUTO_INCREMENT PRIMARY KEY, binary_data LONGBLOB);")
+                        try:
+                            connection.execute(sql_command)
+                        except Exception as e:
+                            print("Error creating table:", e)
+                            return jsonify(error="Error creating table"), 500
+                        # Insert data
+                        for _, row in df.iterrows():
+                            binary_data = row['binary_data']
+                            query = text(f"INSERT INTO {filename} (binary_data) VALUES (:data)")
+                            connection.execute(query, data=binary_data)
+                    results.append(f"{filename} uploaded successfully")
+                else:
+                    print("uploading non npy")
+                    if df.shape[1] > 1017:
+                        df = df.transpose()
+                    df.to_sql(filename, engine, if_exists='replace', index=False)
+                    results.append(f"{filename} uploaded successfully")
             else:
-                results.append(f"Failed to upload {filename}. No data returned.")
+                results.append(f"No data to upload for {filename}. Dataframe is empty.")
         except Exception as e:
             error_msg = f"Error processing {filename}: {str(e)}"
             results.append(error_msg)
 
     return jsonify(results=results)
-'''
+'''  
 @app.route('/delete-record/<database>/<table_name>', methods=['DELETE'])  # delete a table
 def delete_record(database, table_name):
     try:

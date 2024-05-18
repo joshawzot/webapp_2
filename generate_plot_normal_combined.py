@@ -86,6 +86,7 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
 
         transformed_data_groups.append((sorted_data, sigma_values))
 
+    plt.xlim(global_x_min, global_x_max)
     plt.xlabel('Transformed Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
     plt.title('Transformed CDF of Data by Groups')
@@ -112,75 +113,41 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
         print("min(x2):", min(x2))
         print("max(x1):", max(x1))
         print("max(x2):", max(x2))
-
+        
         common_x_min = max(min(x1), min(x2))
         common_x_max = min(max(x1), max(x2))
+        print("common_x_min:", common_x_min)
+        print("common_x_max:", common_x_max)
 
-        if common_x_min >= common_x_max:
-            # Extrapolate when no overlap
-            extrapolate_x_min = min(min(x1), min(x2))
-            extrapolate_x_max = max(max(x1), max(x2))
-            common_x = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
-            print("common_x for extrapolation:", common_x)
-            interp_func_y1 = interp1d(x1, y1, fill_value="extrapolate")
-            interp_func_y2 = interp1d(x2, y2, fill_value="extrapolate")
-            interp_y1 = interp_func_y1(common_x)
-            interp_y2 = interp_func_y2(common_x)
+        common_x_min_all = min(min(x1), min(x2))
+        common_x_max_all = max(max(x1), max(x2))
+        common_x_all = np.linspace(common_x_min_all, common_x_max_all, num=5000)
 
-            # Plotting the extrapolated parts with dashed lines
-            plt.plot(common_x, interp_y1, linestyle='--', color=colors[i], alpha=0.7)
-            plt.plot(common_x, interp_y2, linestyle='--', color=colors[i], alpha=0.7)
-        else:
-            common_x_min_all = min(min(x1), min(x2))
-            common_x_max_all = max(max(x1), max(x2))
-            common_x_all = np.linspace(common_x_min_all, common_x_max_all, num=5000)
+        common_x_1 = np.linspace(common_x_min_all, common_x_min, num=1000)
+        common_x_2 = np.linspace(common_x_max, common_x_max_all, num=1000)
 
-            common_x = np.linspace(common_x_min, common_x_max, num=1000)
-            #print("common_x for interpolation:", common_x)
-            interp_func_y1 = interp1d(x1, y1)
-            interp_func_y2 = interp1d(x2, y2)
+        '''remove the duplicated x for both curves'''
+        # Create unique datasets by removing duplicates
+        unique_x1, unique_indices_x1 = np.unique(x1, return_index=True)
+        unique_y1 = y1[unique_indices_x1]
 
-            interp_func_y1_extrapolate = interp1d(x1, y1, fill_value="extrapolate")
-            interp_func_y2_extrapolate = interp1d(x2, y2, fill_value="extrapolate")
+        unique_x2, unique_indices_x2 = np.unique(x2, return_index=True)
+        unique_y2 = y2[unique_indices_x2]
 
-            interp_y1 = interp_func_y1(common_x)
-            interp_y2 = interp_func_y2(common_x)
-            interp_y1_all = interp_func_y1_extrapolate(common_x_all)
-            interp_y2_all = interp_func_y2_extrapolate(common_x_all)
+        interp_common_x_1 = interp1d(unique_x1, unique_y1, fill_value="extrapolate")(common_x_all)
+        interp_common_x_2 = interp1d(unique_x2, unique_y2, fill_value="extrapolate")(common_x_all)
 
-            extrapolate_x_min = min(min(x1), min(x2))
-            extrapolate_x_max = max(min(x1), min(x2))
+        # Plotting the extrapolated parts with dashed lines
+        plt.plot(common_x_all, interp_common_x_1, linestyle='-', color=colors[i], alpha=0.7)
+        plt.plot(common_x_all, interp_common_x_2, linestyle='-', color=colors[i], alpha=0.7)
 
-            extrapolate_x_min_2 = min(max(x1), max(x2))
-            extrapolate_x_max_2 = max(max(x1), max(x2))
-
-            print("extrapolate_x_min:", extrapolate_x_min)
-            print("extrapolate_x_max:", extrapolate_x_max)
-            print("extrapolate_x_min_2:", extrapolate_x_min_2)
-            print("extrapolate_x_max_2:", extrapolate_x_max_2)
-
-            common_x_1 = np.linspace(extrapolate_x_min, extrapolate_x_max, num=1000)
-            common_x_2 = np.linspace(extrapolate_x_min_2, extrapolate_x_max_2, num=1000)
-            #print("common_x_1:", common_x_1)
-            #print("common_x_2:", common_x_2)
-            interp_y1_xxx = interp_func_y1(common_x_1)
-            interp_y1_xxx_2 = interp_func_y2(common_x_2)
-
-            # Plotting the extrapolated parts with dashed lines
-            plt.plot(common_x_1, interp_y1_xxx, linestyle=':', color=colors[i], alpha=0.7)
-            plt.plot(common_x_2, interp_y1_xxx_2, linestyle=':', color=colors[i], alpha=0.7)
-
-            # Plotting the interpolated parts with dotted lines
-            plt.plot(common_x, interp_y1, linestyle='-', color=colors[i], alpha=0.7)
-            plt.plot(common_x, interp_y2, linestyle='-', color=colors[i], alpha=0.7)
-
-        idx_closest = np.argmin(np.abs(interp_y1 - interp_y2))
-        plt.scatter(common_x[idx_closest], interp_y1[idx_closest], color='red', s=50, zorder=5)
-        intersections.append((common_x[idx_closest], interp_y1[idx_closest]))
+        idx_closest = np.argmin(np.abs(interp_common_x_1 - interp_common_x_2))
+        intersection_x = common_x_all[idx_closest]
+        intersection_y = interp_common_x_1[idx_closest]
+        plt.scatter(intersection_x, intersection_y, color='red', s=50, zorder=5)
+        intersections.append((intersection_x, intersection_y))
 
         # Existing calculation for the intersection
-        intersection_x = common_x[idx_closest]
-        intersection_y = interp_y1[idx_closest]
         print(f"Debug: Intersection at (x={intersection_x}, y={intersection_y})")
 
         # Calculate x-differences and plotting when they are about 2 units apart
@@ -194,11 +161,11 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
                 #print("x_diff:", x_diff)
                 if abs(x_diff - target_x_diff) < tolerance:
                     #print(f"Debug: x_diff = {x_diff}, idx = {idx}, jdx = {jdx}")  # Debug output
-                    if interp_y2_all[jdx] > interp_y1_all[idx]:  # Check divergence
+                    if interp_common_x_2[jdx] > interp_common_x_1[idx]:  # Check divergence
                         if not line_drawn:
-                            plt.hlines(y=interp_y2_all[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
-                            print(f"Debug: Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={interp_y2_all[jdx]}")
-                            horizontal_line_y_value.append(interp_y2_all[jdx])  # Store the y-value where the line is drawn
+                            plt.hlines(y=interp_common_x_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
+                            print(f"Debug: Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={interp_common_x_2[jdx]}")
+                            horizontal_line_y_value.append(interp_common_x_2[jdx])  # Store the y-value where the line is drawn
                             line_drawn = True
                             break
             if line_drawn:
@@ -209,7 +176,7 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
 
         #plt.xlabel('Data Value', fontsize=12)
         plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-        plt.title('Interpolated/Extrapolated CDF Curves for BER Calculation')
+        plt.title('CDF Curves for BER Calculation')
         plt.grid(True)
 
     buf_interpolated_cdf = BytesIO()
@@ -403,27 +370,27 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     tail_probability = sp_stats.norm.sf([abs(y) for y in horizontal_line_y_value])
     ppm = tail_probability * 1_000_000
     print("ppm:", ppm)
-    
+    print("A")
     table = plot_2uS_table(ppm, selected_groups)
     encoded_plots.append(table)
     # Adding plots to the encoded_plots list
     encoded_plots.append(plot_data_original)
     encoded_plots.append(plot_data_interpo)
-
+    print("B")
     encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(intersections)
     encoded_plots.append(encoded_sigma_image)
     encoded_plots.append(encoded_ppm_image)
-
+    print("C")
     normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
     print("normalized_groups:", normalized_groups)
     print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
     window_values_99, window_values_999 = calculate_window_values(all_groups, normalized_groups)
-
+    print("D")
     #print("window_values:", window_values)
     # Generate and append a single combined window analysis table plot
     encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_99)
     encoded_plots.append(encoded_window_analysis_plot)
     encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_999)
     encoded_plots.append(encoded_window_analysis_plot)
-
+    print("E")
     return encoded_plots
