@@ -231,24 +231,19 @@ else:
         #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
         #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])
                 
-        plot_data_original, plot_data_interpo, intersections = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
+        plot_data_original, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
         encoded_plots.append(plot_data_original)
         encoded_plots.append(plot_data_interpo)
 
-        # Initialize the ber_results list
-        ber_results = []
-
-        # Instead of just printing, also append each intersection to the ber_results list
-        for intersection in intersections:
-            print("intersections:")
-            print(intersection)
-            ber_results.append(intersection)
+        #table = plot_2uS_table(ppm, selected_groups)
+        #encoded_plots.append(table)
         
         # Generate tables for visualizing BER results
         print("ber_results:", ber_results)
-        encoded_sigma_image, encoded_ppm_image = plot_ber_tables(ber_results, table_names)
+        encoded_sigma_image, encoded_ppm_image, encoded_2uS_image= plot_ber_tables(ber_results, table_names)
         encoded_plots.append(encoded_sigma_image)
         encoded_plots.append(encoded_ppm_image)
+        encoded_plots.append(encoded_2uS_image)
 
         #encoded_image1, encoded_image2 = plot_overlap_table(all_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups)
         #encoded_plots.append(encoded_image1)

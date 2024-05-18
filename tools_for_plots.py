@@ -319,7 +319,7 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             ber = np.abs(interp_common_x_1[idx_closest])
             ppm_ber = sigma_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
 
-            ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
+            #ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
 
             # Existing calculation for the intersection
             print(f"Debug: Intersection at (x={intersection_x}, y={intersection_y})")
@@ -339,7 +339,11 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
                             if not line_drawn:
                                 plt.hlines(y=interp_common_x_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
                                 print(f"Debug: Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={interp_common_x_2[jdx]}")
-                                horizontal_line_y_value.append(interp_common_x_2[jdx])  # Store the y-value where the line is drawn
+                                #horizontal_line_y_value.append(interp_common_x_2[jdx])  # Store the y-value where the line is drawn
+                                horizontal_line_y_value = interp_common_x_2[jdx]
+                                print("horizontal_line_y_value:", horizontal_line_y_value)
+                                ppm = sigma_to_ppm(abs(horizontal_line_y_value))
+                                print("ppm:", ppm)
                                 line_drawn = True
                                 break
                 if line_drawn:
@@ -347,6 +351,9 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
 
             if not line_drawn:
                 print("No suitable points found to draw a horizontal line.")
+            
+            ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm))
+
     #plt.xlabel('Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
     plt.title('CDF Curves for BER Calculation')
@@ -358,14 +365,10 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     plot_data_interpolated_cdf = base64.b64encode(buf_interpolated_cdf.getvalue()).decode('utf-8')
     buf_interpolated_cdf.close()
     plt.clf()
-
-    # Convert BER results to ppm and return
-    converted_ber_results = []
-    for result in ber_results:
-        table_name, transition, sigma_ber, ppm_ber = result  # Update this line
-        converted_ber_results.append((table_name, transition, sigma_ber, ppm_ber))
-
-    return plot_data_transformed_cdf, plot_data_interpolated_cdf, converted_ber_results
+    
+    print("ber_results:", ber_results)
+    #print("horizontal_line_y_value:", horizontal_line_y_value)
+    return plot_data_transformed_cdf, plot_data_interpolated_cdf, ber_results
 
 from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
 def get_group_data_new_multi_database(table_name, selected_groups, sub_array_size):
@@ -1443,39 +1446,49 @@ def plot_ber_tables(ber_results, table_names):
     
     sigma_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
     ppm_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+    uS_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
     
     sigma_data = [sigma_headers]
     ppm_data = [ppm_headers]
+    uS_data = [uS_headers]
 
     grouped_data = {}
     for entry in ber_results:
         key = entry[1]
         if key not in grouped_data:
             grouped_data[key] = []
-        grouped_data[key].append((entry[2], entry[3]))
+        grouped_data[key].append((entry[2], entry[3], entry[4]))
 
     for key, values in grouped_data.items():
         sigma_row = [key]
         ppm_row = [key]
-        for sigma, ppm in values:
+        uS_row = [key]
+        for sigma, ppm, uS in values:
             sigma_row.append(f"{sigma:.4f}")
             ppm_row.append(f"{ppm:.0f}")
+            uS_row.append(f"{uS:.0f}")
         # Calculate and append row averages formatted to four decimal places
         sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:]]):.4f}")
         ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:]]):.0f}")
+        uS_row.append(f"{np.mean([float(val) for val in uS_row[1:]]):.0f}")
         sigma_data.append(sigma_row)
         ppm_data.append(ppm_row)
+        uS_data.append(uS_row)
 
     # Calculate column averages and append to data formatted to four decimal places
     sigma_col_avg = ["Col Avg"]
     ppm_col_avg = ["Col Avg"]
+    uS_col_avg = ["Col Avg"]
     for col in range(1, len(sigma_data[0])):
         sigma_col = [float(row[col]) for row in sigma_data[1:] if row[col] != "Col Avg"]
         ppm_col = [float(row[col]) for row in ppm_data[1:] if row[col] != "Col Avg"]
+        uS_col = [float(row[col]) for row in uS_data[1:] if row[col] != "Col Avg"]
         sigma_col_avg.append(f"{np.mean(sigma_col):.4f}")
         ppm_col_avg.append(f"{np.mean(ppm_col):.0f}")
+        uS_col_avg.append(f"{np.mean(uS_col):.0f}")
     sigma_data.append(sigma_col_avg)
     ppm_data.append(ppm_col_avg)
+    uS_data.append(uS_col_avg)
 
     fig, ax = setup_figure()
     sigma_table = ax.table(cellText=sigma_data, loc='center', cellLoc='center')
@@ -1501,7 +1514,19 @@ def plot_ber_tables(ber_results, table_names):
     encoded_ppm_image = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig)
 
-    return encoded_sigma_image, encoded_ppm_image
+    fig, ax = setup_figure()
+    uS_table = ax.table(cellText=uS_data, loc='center', cellLoc='center')
+    uS_table.auto_set_font_size(False)
+    uS_table.set_fontsize(10)
+    uS_table.scale(1, 1.5)
+    plt.title("2uS BER Values", fontsize=14)
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    encoded_2uS_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig)
+
+    return encoded_sigma_image, encoded_ppm_image, encoded_2uS_image
 
 '''import csv
 import io
