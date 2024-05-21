@@ -214,15 +214,15 @@ else:
             encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))
 
         #color map
-        #for table_name in table_names:
+        for table_name in table_names:
             # Retrieve the full 2D data matrix for the current table_name
-            #data_matrix, data_matrix_size = get_full_table_data(table_name, database_name)
+            data_matrix, data_matrix_size = get_full_table_data(table_name, database_name)
             
             # Plot the colormap for the retrieved data_matrix
-            # colormap_image = plot_colormap(data_matrix, title=f"Colormap for {table_name}")
+            colormap_image = plot_colormap(data_matrix, title=f"Colormap for {table_name}")
             
             # Add the generated colormap image (encoded) to your list of encoded_plots
-            # encoded_plots.append(colormap_image)
+            encoded_plots.append(colormap_image)
 
         # Generate plots for individual tables
         encoded_plots.append(plot_boxplot(group_data, table_names))

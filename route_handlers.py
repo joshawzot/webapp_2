@@ -792,15 +792,28 @@ def view_plot(database, table_name, plot_function):
 
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
+    print("upload_file()")
     if 'db_name' not in request.form:
         return jsonify(error="No database selected"), 400
 
-    db_name = request.form['db_name']
-    engine = create_db_engine(db_name)
+    if 'files[]' not in request.files:
+        print("No files part in request.files")  # Log missing files part
+        return jsonify(error="No files part in the request"), 400
 
     files = [f for f in request.files.getlist('files[]') if f.filename]
     if not files:
+        print("No files detected")  # Log no files detected
+        return jsonify(error="No files detected"), 400
+
+    for file in files:
+        print(f"File: {file.filename}, MIME Type: {file.mimetype}")
+    
+    print(files)
+
+    if not files:
         return jsonify(error="No files selected"), 400
+    db_name = request.form['db_name']
+    engine = create_db_engine(db_name)
 
     results = []
     for file in files:

@@ -74,7 +74,7 @@ def close_connection():
         connection = None
 
 from sqlalchemy import create_engine
-''''def create_db_engine():
+'''def create_db_engine():
     engine = create_engine(f"mysql+mysqlconnector://{DB_USER}:{MYSQL_PASSWORD}@{DB_HOST}/{db_name}")
     return engine'''
 
