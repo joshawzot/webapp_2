@@ -33,6 +33,12 @@ if LOCAL_DB:
     DB_CONFIG['DB_USER'] = "root"
     DB_CONFIG['MYSQL_PASSWORD_RAW'] = ''
 
+    '''if LOCAL_DB:
+        DB_CONFIG['RDS_PORT'] = 3306  # Implicitly defaults to 3306
+        DB_CONFIG['DB_HOST'] = "192.168.68.164"
+        DB_CONFIG['DB_USER'] = "remote_user"
+        DB_CONFIG['MYSQL_PASSWORD_RAW'] = '' '''
+
 # Default Remote Database Configuration
 else:
     DB_CONFIG['RDS_PORT'] = 3306

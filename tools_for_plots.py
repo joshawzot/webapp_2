@@ -185,7 +185,7 @@ def plot_histogram(data, table_names, colors, figsize=(15, 10)):
     plt.yticks(fontsize=12)
     plt.grid(True)
     #plt.legend()
-    plt.legend(loc='upper right')
+    #plt.legend(loc='upper right')
 
     # Save the histogram figure to a buffer
     buf_histogram = BytesIO()
@@ -1673,9 +1673,11 @@ def normalize_selected_groups(selected_groups):
     
     return normalized_groups, index_to_element
 
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 def get_colors(num_colors):
     """Generate a colormap and return the colors for the specified number of items."""
-    cmap = cm.get_cmap('viridis', num_colors)
+    cmap = plt.get_cmap('viridis', num_colors)
     norm = mcolors.Normalize(vmin=0, vmax=num_colors - 1)
     return [cmap(norm(i)) for i in range(num_colors)]
 
