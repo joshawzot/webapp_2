@@ -20,18 +20,11 @@ LOCAL_DB = True
 DB_CONFIG = {}
 
 # Local mysql on EC2 Database Configuration
-'''if LOCAL_DB:
+if LOCAL_DB:
     DB_CONFIG['RDS_PORT'] = None
     DB_CONFIG['DB_HOST'] = "localhost"
     DB_CONFIG['DB_USER'] = "root"
-    DB_CONFIG['MYSQL_PASSWORD_RAW'] = 'password' '''
-
-# Local mysql on lenovoi7
-if LOCAL_DB:
-    DB_CONFIG['RDS_PORT'] = None  # Implicitly defaults to 3306
-    DB_CONFIG['DB_HOST'] = "localhost"
-    DB_CONFIG['DB_USER'] = "root"
-    DB_CONFIG['MYSQL_PASSWORD_RAW'] = ''
+    DB_CONFIG['MYSQL_PASSWORD_RAW'] = 'password'
 
 # Default Remote Database Configuration
 else:
@@ -39,6 +32,15 @@ else:
     DB_CONFIG['DB_HOST'] = 'webapp.cdecmst6qwog.us-east-2.rds.amazonaws.com'
     DB_CONFIG['DB_USER'] = 'admin'
     DB_CONFIG['MYSQL_PASSWORD_RAW'] = 'Aa11720151015'
+
+# Local mysql on lenovoi7
+'''
+if LOCAL_DB:
+    DB_CONFIG['RDS_PORT'] = None  # Implicitly defaults to 3306
+    DB_CONFIG['DB_HOST'] = "localhost"
+    DB_CONFIG['DB_USER'] = "root"
+    DB_CONFIG['MYSQL_PASSWORD_RAW'] = '' 
+'''
 
 #from local
 #mysql -h localhost -u root -p or mysql -u root -ppassword

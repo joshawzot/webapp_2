@@ -5,6 +5,7 @@
 #USER='admin'
 #PASSWORD='Aa11720151015'
 
+# Local EC2 MySQL credentials
 HOST='localhost'
 USER='root'
 PASSWORD='password'
