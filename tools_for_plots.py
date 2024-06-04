@@ -250,11 +250,17 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
 
         transformed_data_groups.append(transformed_data)
 
-    plt.xlabel('Transformed Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Transformed CDF of Data by Groups')
+    #plt.xlabel('Transformed Data Value', fontsize=12)
+    #plt.ylabel('Sigma (Standard deviations)', fontsize=12)
+    #plt.ylabel('Probability', fontsize=12)
+    #plt.title('Transformed CDF of Data by Groups')
     plt.legend()
     plt.grid(True)
+
+    # Set y-axis to log scale
+    #plt.yscale('log')
+    # Adjust y-axis to show probabilities as percentages and handle very small probabilities
+    #plt.ylim(bottom=0.0001)  # Set the lower limit of y-axis
 
     buf_transformed_cdf = BytesIO()
     plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
@@ -355,9 +361,15 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm))
 
     #plt.xlabel('Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('CDF Curves for BER Calculation')
+    #plt.ylabel('Sigma (Standard deviations)', fontsize=12)
+    #plt.ylabel('Probability', fontsize=12)
+    #plt.title('CDF Curves for BER Calculation')
     plt.grid(True)
+
+    # Set y-axis to log scale
+    #plt.yscale('log')
+    # Adjust y-axis to show probabilities as percentages and handle very small probabilities
+    #plt.ylim(bottom=0.0000000001)  # Set the lower limit of y-axis
 
     buf_interpolated_cdf = BytesIO()
     plt.savefig(buf_interpolated_cdf, format='png', bbox_inches='tight')
