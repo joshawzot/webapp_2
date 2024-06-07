@@ -276,6 +276,7 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     horizontal_line_y_value = []
 
     for i, transformed_data in enumerate(transformed_data_groups):
+        ppm = None
         print("i:", i)
 
         for k in range(len(transformed_data) - 1):
