@@ -1,38 +1,48 @@
-#route_handlers.py
+# route_handlers.py
+
+from my_flask_app import app, cache, redis_client
+from db_operations import *
+from config import *
+from utilities import *
+# my_flask_app.py
+from flask import Flask, request, jsonify, render_template, redirect
+from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
+from flask_apscheduler import APScheduler
+from flask_caching import Cache
+from flask_talisman import Talisman  # Ensure Talisman is used if security headers are required
+
+import redis  # Used for Redis client initialization
+import json  # Used for JSON handling, if necessary
+import uuid  # Used for generating unique identifiers
+import random  # Used if random operations are needed
+
+from config import DB_CONFIG, APP_SECRET_KEY  # Import configuration constants
 
 # Standard library imports
-import re
+import os, hashlib, base64, json, uuid, time
 from io import BytesIO
-import time
+from tempfile import TemporaryFile, NamedTemporaryFile, TemporaryDirectory
+from urllib.parse import quote_plus
 
 # External libraries
 import pandas as pd
-import mysql.connector
-from flask import (Flask, render_template, redirect, url_for, request, session, flash, jsonify, render_template_string, send_file)
-from werkzeug.security import check_password_hash, generate_password_hash
-
-import hashlib
-import boto3
-from pptx import Presentation
-from reportlab.pdfgen import canvas
-import os
-import tempfile
-import boto3
 import requests
-# Flask extensions
-from flask import Flask, request, redirect, url_for
-from threading import Thread
-from urllib.parse import quote_plus
-from flask import request, send_file
-import base64
+import boto3
+import mysql.connector
+from flask import Flask, request, jsonify, make_response, redirect, url_for, session, flash, send_file, render_template, render_template_string
+from werkzeug.security import check_password_hash, generate_password_hash
+from pptx import Presentation
 from pptx.util import Inches
-from flask import Flask, request, make_response
+from reportlab.pdfgen import canvas
+import zipfile
+import numpy as np
+import csv
+import io
+from PIL import Image
 
-#------------------------------------------------------------------------
+from db_monitor import *
 # Custom module imports
-from my_flask_app import app, cache
-from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2, get_csv_from_table
-from utilities import sanitize_table_name, validate_filename, render_results, get_form_data_generate_plot, process_file
 #from generate_plot_vertical_xn import generate_plot_vertical_xn
 #from generate_plot_horizontal_boxplotsigma_xn import generate_plot_horizontal_boxplotsigma_xn
 #from generate_plot_horizontal_boxplotsigma_xnxm import generate_plot_horizontal_boxplotsigma_xnxm
@@ -55,9 +65,6 @@ from generate_plot_miao import generate_plot_miao
 
 '''from flask_caching import Cache
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})'''
-
-import subprocess
-from flask import send_file
 
 #backup to server side
 '''
@@ -97,7 +104,6 @@ def backup():
     return jsonify(responses), 200
 '''
 
-import zipfile
 #back up to client side
 @app.route('/backup', methods=['POST'])
 def backup():
@@ -147,10 +153,9 @@ def all_databases():
     else:
         return render_template('list_databases.html', databases=databases)
 
-from config import DB_CONFIG, LOCAL_DB, ENG
 @app.route('/delete-database/<name>', methods=['DELETE'])
 def delete_database(name):
-    conn = connect_to_db(DB_CONFIG['DB_USER'], DB_CONFIG['MYSQL_PASSWORD_RAW'], DB_CONFIG['DB_HOST'], DB_CONFIG['RDS_PORT'] if not LOCAL_DB else None)
+    conn = connect_to_db(DB_CONFIG['DB_USER'], DB_CONFIG['MYSQL_PASSWORD_RAW'], DB_CONFIG['DB_HOST'], DB_CONFIG['RDS_PORT'])
     if conn is None:
         return jsonify({"error": "Failed to connect to the database"}), 500
 
@@ -177,10 +182,6 @@ def save_txt_content(database, table_name):
         return "Content saved successfully", 200
     except mysql.connector.Error as err:
         return str(err), 400
-
-import os
-import hashlib
-from flask import Flask, send_from_directory
 
 last_pptx_hash = ''  # Just a starting value; should be managed appropriately.
 @app.route('/get-pptx-as-pdf', methods=['GET'])
@@ -258,9 +259,12 @@ def get_pptx_as_pdf(): hash
 def dynamodb_home():
     return render_template('dynamodb_home.html')
 
-from config import MULTI_DATABASE_ANALYSIS
 @app.route('/home-page', methods=['GET'])   # also Defines a route for the root URL
 def home_page():
+    print("Home page route is set up.")
+    #if not scheduler.get_job('Schema Monitor'):
+        #print("scheduler")
+        #scheduler.add_job(id='Schema Monitor', func=check_for_new_schemas, trigger='interval', minutes=1)
     """Get a list of databases available."""
     try:
         conn = create_connection()
@@ -458,7 +462,7 @@ def render_plot_miao(unique_id):
     except Exception as e:
         return f"Error: {e}", 500
 
-@app.route('/render-plot/<unique_id>')
+'''@app.route('/render-plot/<unique_id>')
 def render_plot(unique_id):
     # Attempt to fetch cached plot data using unique_id as the cache key
     cache_key = f"plot_data_{unique_id}"
@@ -495,7 +499,146 @@ def render_plot(unique_id):
 
         return render_template('plot.html', plot_data=plot_data)
     except Exception as e:
+        return f"Error: {e}", 500'''
+
+@app.route('/render-plot/<unique_id>')
+def render_plot(unique_id):
+    data_type = "avg_std"
+    #return download_csv2(unique_id, data_type)
+
+    # Regular flow to fetch and render plot data
+    cache_key = f"plot_data_{unique_id}"
+    cached_plot_data = cache.get(cache_key)
+
+    if cached_plot_data:
+        return render_template('plot.html', plot_data=cached_plot_data)
+
+    stored_data_json = redis_client.get(unique_id)
+    if not stored_data_json:
+        return "Error: Invalid ID or Data Expired", 404
+
+    stored_data = json.loads(stored_data_json)
+    database = stored_data["database"]
+    table_names = stored_data["table_name"].split(',')
+    form_data = stored_data["form_data"]
+    plot_function = stored_data["plot_function"]
+
+    generate_plot_function = generate_plot_functions.get(plot_function)
+    if generate_plot_function is None:
+        return "Error: Invalid plot function selection", 400
+
+    try:
+        plot_data = generate_plot_function(table_names, database, form_data)
+        cache.set(cache_key, plot_data, timeout=None)
+        return render_template('plot.html', plot_data=plot_data)
+    except Exception as e:
         return f"Error: {e}", 500
+
+@app.route('/download_csv/<unique_id>/<data_type>')
+def download_csv2(unique_id, data_type):
+    # Retrieve plot data either from cache or Redis
+    cache_key = f"plot_data_{unique_id}"
+    plot_data = cache.get(cache_key)
+    if not plot_data:
+        stored_data_json = redis_client.get(unique_id)
+        if not stored_data_json:
+            return "Error: Data not found", 404
+        stored_data = json.loads(stored_data_json)
+        database = stored_data["database"]
+        table_names = stored_data["table_name"].split(',')
+        form_data = stored_data["form_data"]
+        plot_function = stored_data["plot_function"]
+        generate_plot_function = generate_plot_functions.get(plot_function)
+        if not generate_plot_function:
+            return "Error: Invalid plot function selection", 400
+        plot_data = generate_plot_function(table_names, database, form_data)
+
+    # Generate CSV based on plot_data and data_type
+    if data_type == "avg_std":
+        avg_values, std_values, table_names, selected_groups = plot_data
+        header = ["State"] + [f"{table_name}" for table_name in table_names] + ["Row Avg", "Row Std Dev"]
+        table_data = [header]
+        column_data = [[] for _ in table_names]
+
+        for i, group in enumerate(selected_groups):
+            row = [f"State {group}"]
+            row_data = []
+
+            for j, table_avg in enumerate(avg_values):
+                avg = table_avg[i]
+                row.append(f"{avg:.2f}")
+                row_data.append(avg)
+                column_data[j].append(avg)
+
+            row_avg = np.mean(row_data)
+            row_std = np.std(row_data)
+            row.extend([f"{row_avg:.2f}", f"{row_std:.2f}"])
+            table_data.append(row)
+
+        col_avgs = [np.mean(col) for col in column_data]
+        col_stds = [np.std(col) for col in column_data]
+        table_data.append(["Col Avg"] + [f"{avg:.2f}" for avg in col_avgs] + ["-", "-"])
+        table_data.append(["Col Std Dev"] + [f"{std:.2f}" for std in col_stds] + ["-", "-"])
+        return generate_csv_response(table_data, "avg_std_data.csv")
+
+    elif data_type in ["sigma", "ppm", "us"]:
+        ber_results, _ = plot_data
+        headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+        data_collections = [headers[:], headers[:], headers[:]]
+
+        grouped_data = {}
+        for entry in ber_results:
+            key = entry[1]
+            if key not in grouped_data:
+                grouped_data[key] = []
+            grouped_data[key].append((entry[2], entry[3], entry[4]))
+
+        for key, values in grouped_data.items():
+            rows = [[key], [key], [key]]
+            for val in values:
+                rows[0].append(f"{val[0]:.4f}")
+                rows[1].append(f"{int(val[1])}")
+                rows[2].append(f"{int(val[2])}")
+            for row in rows:
+                avg = np.mean([float(v) for v in row[1:]])
+                row.append(f"{avg:.4f}")
+
+            data_collections[0].append(rows[0])
+            data_collections[1].append(rows[1])
+            data_collections[2].append(rows[2])
+
+        index = {"sigma": 0, "ppm": 1, "us": 2}[data_type]
+        filename = f"{data_type}_data.csv"
+        return generate_csv_response(data_collections[index], filename)
+
+def generate_csv_response(data, filename):
+    csv_output = StringIO()
+    for row in data:
+        csv_output.write(','.join(str(item) for item in row) + '\n')
+    csv_output.seek(0)
+    response = make_response(csv_output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-type"] = "text/csv"
+    return response
+
+@app.route('/download_csv')
+def download_csv():
+    database = request.args.get('database')
+    table_name = request.args.get('table_name')
+
+    try:
+        # Generate the CSV data
+        csv_data = get_csv_from_table(database, table_name)
+        if csv_data is None:
+            return "Error generating CSV file", 500
+
+        # Create a response with the CSV data as a downloadable file
+        response = make_response(csv_data)
+        response.headers['Content-Disposition'] = f'attachment; filename={table_name}.csv'
+        response.mimetype = 'text/csv'
+        return response
+    except Exception as e:
+        return str(e), 500
 
 def fetch_all_numeric_data(table_name, database_name):
     # Establish a connection to the database
@@ -521,14 +664,6 @@ def fetch_all_numeric_data(table_name, database_name):
         connection.close()
 
     return data, data_dimension
-
-import urllib.parse
-from flask import Flask, request, jsonify, render_template, redirect
-import uuid
-import random
-import numpy as np 
-from my_flask_app import redis_client
-import json
 
 #view plot for MULTI_DATABASE_ANALYSIS
 @app.route('/view-plot-multi-database/<plot_function>', methods=['GET', 'POST'])
@@ -949,20 +1084,20 @@ def create_database():
     else:
         return jsonify({"error": "Failed to create database"}), 500
 
-from PIL import Image
 @app.route('/download_pptx', methods=['POST'])
 def download_pptx():
-    '''    
+      
     #template_path = '/home/server/Desktop/device_testing_webapp2/pptx_template/template.pptx'  # Path to the template file
     #template_path = '/home/ubuntu/webapp_2/pptx_template/template.pptx'  #Tetramem EC2 direcotry
-    template_path = '/home/server/Desktop/webapp_2/pptx_template/template.pptx'
+    template_path = '/home/lenovoi7/Desktop/webapp_2/pptx_template/template.pptx'
 
     plots = request.json.get('plots', [])  # Retrieve the Base64 encoded images from the POST request
 
     prs = Presentation(template_path)  # Open the template PowerPoint file as the base for the new presentation
-    '''
+    
     #aws s3 cp /home/server/Desktop/template.pptx s3://webapp20240318/template.pptx --region us-east-2
 
+    '''
     # AWS S3 bucket name and key/path where the PowerPoint template is located
     bucket_name = 'webapp20240318'
     s3_key = 'template.pptx'
@@ -981,7 +1116,7 @@ def download_pptx():
     
     # Load the PowerPoint template
     prs = Presentation(pptx_template_io)
-    
+    '''
     # Retrieve the Base64 encoded images from the POST request
     plots = request.json.get('plots', [])
     
@@ -1132,8 +1267,6 @@ def copy_selected_tables():
         return jsonify({"success": False, "message": "Some tables failed to copy.", "details": response}), 400
     return jsonify({"success": True, "message": "All selected tables copied successfully."})
 
-from flask import Flask, jsonify, request
-from dynamodb import get_items, add_item
 @app.route('/getDatabases', methods=['GET'])
 def get_databases():
     # Create a database connection
@@ -1189,22 +1322,3 @@ def list_tables():
         db_tables[db] = fetch_tables(db)  # Fetch tables from each database
 
     return render_template('list_tables_new.html', db_tables=db_tables, databases=databases)
-
-@app.route('/download_csv')
-def download_csv():
-    database = request.args.get('database')
-    table_name = request.args.get('table_name')
-
-    try:
-        # Generate the CSV data
-        csv_data = get_csv_from_table(database, table_name)
-        if csv_data is None:
-            return "Error generating CSV file", 500
-
-        # Create a response with the CSV data as a downloadable file
-        response = make_response(csv_data)
-        response.headers['Content-Disposition'] = f'attachment; filename={table_name}.csv'
-        response.mimetype = 'text/csv'
-        return response
-    except Exception as e:
-        return str(e), 500

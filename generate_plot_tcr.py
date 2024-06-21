@@ -1,21 +1,21 @@
 from tools_for_plots import *
-
-
+from db_operations import create_connection, fetch_data, close_connection
 import io
 import base64
+import numpy as np
 
 def plot_tcr(group_data, selected_groups):
     # Map table names to temperatures for x-axis labeling
-    table_names = ['01_25c_npy', '02_55c_npy', '03_85c_npy', '04_55c_npy']
-    temperature_labels = ['25°C', '55°C', '85°C', 'Second 55°C']  # Assuming these are the temperatures represented by the table_names in order
+    table_names = ['25C', '55C', '85C', '125C','85C_2','55C_2','25C_2']
+    temperature_labels = ['25C', '55C', '85C', '125C','85C_2','55C_2','25C_2']  # Assuming these are the temperatures represented by the table_names in order
 
     # Temperature differences for TCR calculations, assuming 25°C as the reference
-    delta_ts = [0, 30, 60, 30]  # Corresponding ΔT for each table_name, assuming the last is another measurement at 55°C
+    delta_ts = [0, 30, 60, 100, 60, 30, 0]  # Corresponding ΔT for each table_name, assuming the last is another measurement at 55°C
 
     fig, ax = plt.subplots()
 
     # Assuming '01_25c_npy' contains G1 values for the reference temperature (25°C)
-    idx_25c = table_names.index('01_25c_npy')
+    idx_25c = table_names.index('25C')
 
     for group_idx in selected_groups:
         tcr_values = []
@@ -59,26 +59,55 @@ def generate_plot(table_names, database_name, form_data):
     # Ensure this connects to your database
     connection = create_connection(database_name)
 
+    print("table_names:", table_names)
     selected_groups = form_data.get('selected_groups', [])
-
-    sub_array_size = int(form_data.get('sub_array_size', 16))  # Convert to int to ensure it's not a float
+    print("selected_groups:", selected_groups)
+    #selected_groups = list(range(4096))
+    #selected_groups = list(range(82944))
+    #return 0
+    
+    # Fetch sub_array_size from form_data, which could be either a string or a list
+    sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
+    print("sub_array_size_raw:", sub_array_size_raw)
+    sub_array_size = tuple(sub_array_size_raw)
+    print("sub_array_size:", sub_array_size)
 
     # Initialize an empty list to hold the encoded plots
     encoded_plots = []
     group_data = []
 
-    # Define a colormap
-    cmap = cm.get_cmap('viridis', len(table_names))
-    norm = mcolors.Normalize(vmin=0, vmax=len(table_names) - 1)
-    colors = [cmap(norm(i)) for i in range(len(table_names))]
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    from matplotlib.colors import ListedColormap
+    import numpy as np
+
+    n_colors = len(table_names)
+
+    # Generate a list of colors from the 'viridis' colormap
+    base_colors = plt.cm.viridis(np.linspace(0, 1, n_colors))
+
+    # Create a new ListedColormap from the base colors
+    cmap = ListedColormap(base_colors)
+
+    # Define a normalization from values in [0, n_colors-1]
+    norm = mcolors.Normalize(vmin=0, vmax=n_colors - 1)
+
+    # Generate color values for each index
+    colors = [cmap(norm(i)) for i in range(n_colors)]
+
 
     # Process each table and collect data and statistics (only once)
     for table_name in table_names:
-        groups, stats, array_size = get_group_data(table_name, selected_groups, database_name, sub_array_size)
+        groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        #groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        print("AAA")
         group_data.append(groups)
+        print("BBB")
 
     encoded_plot_tcr = plot_tcr(group_data, selected_groups)
-    encoded_plots.append(encoded_plot_tcr)        
+    print("CCC")
+    encoded_plots.append(encoded_plot_tcr)
+    print("DDD")        
     
     return encoded_plots
 

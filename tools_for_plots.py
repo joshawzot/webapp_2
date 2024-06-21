@@ -216,6 +216,18 @@ def sigma_to_ppm(sigma):
     ppm = tail_probability * 1_000_000
     return ppm
 
+from scipy.stats import norm 
+def cdf_to_ppm(cdf): 
+    tail_probability = cdf
+    ppm = tail_probability * 1_000_000 
+    return ppm
+
+from scipy.stats import norm 
+def sigma_to_cdf(sigma): 
+    # Calculate the CDF for the given sigma value 
+    cdf_value = norm.cdf(sigma) 
+    return cdf_value
+
 from scipy.interpolate import interp1d
 def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(15, 10)):
     # First plot: Transformed CDF
@@ -225,6 +237,10 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     transformed_data_groups = []
     global_x_min = float('inf')
     global_x_max = float('-inf')
+
+    # Create separate figures for sigma and CDF plots with specified size
+    fig_sigma, ax_sigma = plt.subplots(figsize=figsize)
+    fig_cdf, ax_cdf = plt.subplots(figsize=figsize)
 
     for i, group in enumerate(data):
         transformed_data = []
@@ -243,29 +259,51 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             cdf_values = (np.arange(1, len(sorted_data) + 1) - 0.5) / len(sorted_data)
             sigma_values = sp_stats.norm.ppf(cdf_values)
 
-            plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)
-            plt.scatter(sorted_data, sigma_values, s=10, color=colors[i])
+            # Plot sigma values
+            ax_sigma.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i], label=label)
+            ax_sigma.scatter(sorted_data, sigma_values, s=10, color=colors[i])
+
+            # Plot CDF values
+            ax_cdf.plot(sorted_data, cdf_values, linestyle='-', linewidth=1, color=colors[i], label=label)
+            ax_cdf.scatter(sorted_data, cdf_values, s=10, color=colors[i])
 
             transformed_data.append((sorted_data, sigma_values))
 
         transformed_data_groups.append(transformed_data)
 
-    plt.xlabel('Transformed Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Transformed CDF of Data by Groups')
-    plt.legend()
-    plt.grid(True)
+    # Sigma plot settings
+    ax_sigma.set_title('Sigma Plot of Transformed Data by Groups')
+    #ax_sigma.set_yscale('log')
+    ax_sigma.legend()
+    ax_sigma.grid(True)
 
-    buf_transformed_cdf = BytesIO()
-    plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
-    buf_transformed_cdf.seek(0)
-    plot_data_transformed_cdf = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
-    buf_transformed_cdf.close()
-    plt.clf()
+    # CDF plot settings
+    ax_cdf.set_title('CDF Plot of Transformed Data by Groups')
+    ax_cdf.set_yscale('log')
+    ax_cdf.legend()
+    ax_cdf.grid(True)
 
-    # Second plot: Interpolated Curves for BER Calculation
+    # Save sigma plot
+    buf_sigma = BytesIO()
+    fig_sigma.savefig(buf_sigma, format='png', bbox_inches='tight')
+    buf_sigma.seek(0)
+    plot_data_sigma = base64.b64encode(buf_sigma.getvalue()).decode('utf-8')
+    buf_sigma.close()
+
+    # Save CDF plot
+    buf_cdf = BytesIO()
+    fig_cdf.savefig(buf_cdf, format='png', bbox_inches='tight')
+    buf_cdf.seek(0)
+    plot_data_cdf = base64.b64encode(buf_cdf.getvalue()).decode('utf-8')
+    buf_cdf.close()
+
+    # Clear the figures after saving
+    plt.close(fig_sigma)
+    plt.close(fig_cdf)
+
     plt.figure(figsize=figsize)
     plt.xlim(global_x_min, global_x_max)  # Set the x-axis to match the original plot's range
+
     intersections = []
     horizontal_line_y_value = []
 
@@ -276,99 +314,83 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             x1, y1 = transformed_data[k]
             x2, y2 = transformed_data[k + 1]
 
-            # Reverse the y-axis for the first of the two states being compared
-            y1 = -y1
+            y1 = -y1  # Reverse the y-axis for the first of the two states being compared
 
-            # Define start and end states
             start_state = selected_groups[k]
             end_state = selected_groups[k + 1]
-
-            common_x_min = max(min(x1), min(x2))
-            common_x_max = min(max(x1), max(x2))
-            print("common_x_min:", common_x_min)
-            print("common_x_max:", common_x_max)
 
             common_x_min_all = min(min(x1), min(x2))
             common_x_max_all = max(max(x1), max(x2))
             common_x_all = np.linspace(common_x_min_all, common_x_max_all, num=5000)
 
-            common_x_1 = np.linspace(common_x_min_all, common_x_min, num=1000)
-            common_x_2 = np.linspace(common_x_max, common_x_max_all, num=1000)
-
-            '''remove the duplicated x for both curves'''
-            # Create unique datasets by removing duplicates
+            # Remove duplicates and interpolate
             unique_x1, unique_indices_x1 = np.unique(x1, return_index=True)
             unique_y1 = y1[unique_indices_x1]
-
             unique_x2, unique_indices_x2 = np.unique(x2, return_index=True)
             unique_y2 = y2[unique_indices_x2]
 
             interp_common_x_1 = interp1d(unique_x1, unique_y1, fill_value="extrapolate")(common_x_all)
             interp_common_x_2 = interp1d(unique_x2, unique_y2, fill_value="extrapolate")(common_x_all)
 
-            # Plotting the extrapolated parts with dashed lines
-            plt.plot(common_x_all, interp_common_x_1, linestyle='-', color=colors[i], alpha=0.7)
-            plt.plot(common_x_all, interp_common_x_2, linestyle='-', color=colors[i], alpha=0.7)
+            # Convert sigma to CDF values
+            cdf_value_1 = norm.cdf(interp_common_x_1)
+            cdf_value_2 = norm.cdf(interp_common_x_2)
 
-            idx_closest = np.argmin(np.abs(interp_common_x_1 - interp_common_x_2))
+            # Plotting the extrapolated parts
+            plt.plot(common_x_all, cdf_value_1, linestyle='-', color=colors[i], alpha=0.7)
+            plt.plot(common_x_all, cdf_value_2, linestyle='-', color=colors[i], alpha=0.7)
+
+            # Find and mark intersection
+            idx_closest = np.argmin(np.abs(cdf_value_1 - cdf_value_2))
             intersection_x = common_x_all[idx_closest]
-            intersection_y = interp_common_x_1[idx_closest]
+            intersection_y = cdf_value_1[idx_closest]
             plt.scatter(intersection_x, intersection_y, color='red', s=50, zorder=5)
             intersections.append((intersection_x, intersection_y))
 
-            ber = np.abs(interp_common_x_1[idx_closest])
-            ppm_ber = sigma_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
+            ber = np.abs(cdf_value_1[idx_closest])
+            ppm_ber = cdf_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
 
-            #ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber))
-
-            # Existing calculation for the intersection
-            print(f"Debug: Intersection at (x={intersection_x}, y={intersection_y})")
-
-            # Calculate x-differences and plotting when they are about 2 units apart
+            # Draw horizontal lines if x-differences are about 2 units apart
             target_x_diff = 2
-            tolerance = 0.1  # Smaller tolerance for precise calculation
-            line_drawn = False  # Flag to ensure only one line is drawn
+            tolerance = 0.1
+            line_drawn = False
 
             for idx in range(len(common_x_all) - 1):
                 for jdx in range(idx + 1, len(common_x_all)):
                     x_diff = common_x_all[jdx] - common_x_all[idx]
-                    #print("x_diff:", x_diff)
                     if abs(x_diff - target_x_diff) < tolerance:
-                        #print(f"Debug: x_diff = {x_diff}, idx = {idx}, jdx = {jdx}")  # Debug output
-                        if interp_common_x_2[jdx] > interp_common_x_1[idx]:  # Check divergence
-                            if not line_drawn:
-                                plt.hlines(y=interp_common_x_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
-                                print(f"Debug: Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={interp_common_x_2[jdx]}")
-                                #horizontal_line_y_value.append(interp_common_x_2[jdx])  # Store the y-value where the line is drawn
-                                horizontal_line_y_value = interp_common_x_2[jdx]
-                                print("horizontal_line_y_value:", horizontal_line_y_value)
-                                ppm = sigma_to_ppm(abs(horizontal_line_y_value))
-                                print("ppm:", ppm)
-                                line_drawn = True
-                                break
+                        if cdf_value_2[jdx] > cdf_value_1[idx]:  # Check divergence
+                            plt.hlines(y=cdf_value_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
+                            horizontal_line_y_value = cdf_value_2[jdx]
+                            ppm = cdf_to_ppm(abs(horizontal_line_y_value))
+                            print(f"Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={cdf_value_2[jdx]}")
+                            print("ppm:", ppm)
+                            line_drawn = True
+                            break
                 if line_drawn:
                     break
 
             if not line_drawn:
                 print("No suitable points found to draw a horizontal line.")
-            
+
             ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm))
-
-    #plt.xlabel('Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('CDF Curves for BER Calculation')
+    
+    #plt.ylabel('CDF Value', fontsize=12)
+    #plt.title('CDF Curves for BER Calculation')
     plt.grid(True)
+    plt.yscale('log')
 
+    # Save the figure to a buffer and encode as base64 for embedding or saving
     buf_interpolated_cdf = BytesIO()
     plt.savefig(buf_interpolated_cdf, format='png', bbox_inches='tight')
     buf_interpolated_cdf.seek(0)
     plot_data_interpolated_cdf = base64.b64encode(buf_interpolated_cdf.getvalue()).decode('utf-8')
     buf_interpolated_cdf.close()
     plt.clf()
-    
+
     print("ber_results:", ber_results)
     #print("horizontal_line_y_value:", horizontal_line_y_value)
-    return plot_data_transformed_cdf, plot_data_interpolated_cdf, ber_results
+    return plot_data_sigma, plot_data_cdf, plot_data_interpolated_cdf, ber_results
 
 from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
 def get_group_data_new_multi_database(table_name, selected_groups, sub_array_size):
@@ -1037,6 +1059,40 @@ def plot_average_values_table(avg_values, table_names, selected_groups, figsize=
     plt.close(fig)
 
     return encoded_image
+
+def print_average_values_table(avg_values, table_names, selected_groups):
+    # Extend header to include 'Row Avg' and 'Row Std Dev'
+    header = ["State"] + [f"{table_name}" for table_name in table_names] + ["Row Avg", "Row Std Dev"]
+    print('\t'.join(header))
+
+    # Store column-wise data for calculating column averages and std dev later
+    column_data = [[] for _ in table_names]
+
+    for i, group in enumerate(selected_groups):
+        row = [f"State {group}"]
+        row_data = []  # For calculating row statistics
+        
+        for j, table_avg in enumerate(avg_values):
+            avg = table_avg[i]  # Access the average for this group in the current table
+            row.append(f"{avg:.2f}")
+            row_data.append(avg)
+            column_data[j].append(avg)
+
+        # Calculate and append row average and std dev
+        row_avg = np.mean(row_data)
+        row_std = np.std(row_data)
+        row.extend([f"{row_avg:.2f}", f"{row_std:.2f}"])
+        
+        print('\t'.join(row))
+
+    # Calculate and append column averages and std dev
+    col_avgs = [np.mean(col) for col in column_data]
+    col_stds = [np.std(col) for col in column_data]
+    footer_avg = ["Col Avg"] + [f"{avg:.2f}" for avg in col_avgs] + ["-", "-"]
+    footer_std = ["Col Std Dev"] + [f"{std:.2f}" for std in col_stds] + ["-", "-"]
+
+    print('\t'.join(footer_avg))
+    print('\t'.join(footer_std))
 
 def plot_std_values_table(std_values, table_names, selected_groups, figsize=(12, 8)):
     fig, ax = plt.subplots(figsize=figsize)

@@ -141,6 +141,9 @@ else:
         print("aggregated_groups_by_selected_group:", aggregated_groups_by_selected_group)
         selected_groups = form_data.get('selected_groups', [])
         print("selected_groups:", selected_groups)
+        #selected_groups = list(range(4096))
+        #selected_groups = list(range(82944))
+        #return 0
         
         # Fetch sub_array_size from form_data, which could be either a string or a list
         sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
@@ -194,7 +197,7 @@ else:
             avg_values.append(table_avg_values)
             std_values.append(table_std_values)
 
-            if selected_groups == list(range(16)): #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]:
+            '''if selected_groups == list(range(16)): #[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]:
                 #print(groups)
                 complete_overlaps_individule = generate_overlap_data_for_all_combinations(groups, selected_groups, sub_array_size)
                 print("complete_overlaps_individule:", complete_overlaps_individule)
@@ -203,15 +206,18 @@ else:
                 print("Minimum average overlap:", min_overlap)
                 
                 best_groups_append.append(best_groups)
-                min_overlap_append.append(min_overlap)
+                min_overlap_append.append(min_overlap)'''
 
+        #print_average_values_table(avg_values, table_names, selected_groups)
+        #return avg_values, std_values, table_names, selected_groups
+        #return 0
         print("group_data:", group_data)
         #print("all_groups:", all_groups)
 
         print("aggregated_window_values:", aggregated_window_values)
 
-        if selected_groups == list(range(16)):    
-            encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))
+        #if selected_groups == list(range(16)):    
+            #encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))
 
         #color map
         for table_name in table_names:
@@ -227,12 +233,12 @@ else:
         # Generate plots for individual tables
         encoded_plots.append(plot_boxplot(group_data, table_names))
         encoded_plots.append(plot_histogram(group_data, table_names, colors))
-
         #encoded_plots.append(plot_transformed_cdf(group_data, table_names, colors))
         #encoded_plots.append(plot_transformed_cdf_2(group_data, table_names, colors)[0])
                 
-        plot_data_original, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
-        encoded_plots.append(plot_data_original)
+        plot_data_sigma, plot_data_cdf, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
+        encoded_plots.append(plot_data_sigma)
+        encoded_plots.append(plot_data_cdf)
         encoded_plots.append(plot_data_interpo)
 
         #table = plot_2uS_table(ppm, selected_groups)
@@ -241,6 +247,7 @@ else:
         # Generate tables for visualizing BER results
         print("ber_results:", ber_results)
         encoded_sigma_image, encoded_ppm_image, encoded_2uS_image= plot_ber_tables(ber_results, table_names)
+        #return ber_results, table_names
         encoded_plots.append(encoded_sigma_image)
         encoded_plots.append(encoded_ppm_image)
         encoded_plots.append(encoded_2uS_image)
@@ -248,7 +255,7 @@ else:
         #encoded_image1, encoded_image2 = plot_overlap_table(all_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups)
         #encoded_plots.append(encoded_image1)
         #encoded_plots.append(encoded_image2)
-
+        
         encoded_plot_for_avg = plot_average_values_table(avg_values, table_names, selected_groups)
         encoded_plots.append(encoded_plot_for_avg)
 
@@ -257,6 +264,7 @@ else:
 
         # Generate and append a single combined window analysis table plot
         encoded_window_analysis_plot = plot_combined_window_analysis_table(aggregated_window_values)
+        #return aggregated_window_values
         encoded_plots.append(encoded_window_analysis_plot)
 
         return encoded_plots
