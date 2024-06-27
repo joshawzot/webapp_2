@@ -5,8 +5,8 @@ from urllib.parse import quote_plus
 APP_SECRET_KEY = '1234'
 
 #eng
-#ENG = False
-ENG = True
+ENG = False
+#ENG = True
 
 #CHECk_DB is to enable autom mail notification
 CHECK_DB = True
