@@ -282,7 +282,9 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     ax_cdf.set_yscale('log')
     ax_cdf.legend()
     ax_cdf.grid(True)
-
+    # Set fixed x-axis limits for CDF plot
+    ax_cdf.set_xlim(0, 200)  # Setting x-axis minimum to 0 and maximum to 200
+    
     # Save sigma plot
     buf_sigma = BytesIO()
     fig_sigma.savefig(buf_sigma, format='png', bbox_inches='tight')
@@ -379,6 +381,7 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     #plt.title('CDF Curves for BER Calculation')
     plt.grid(True)
     plt.yscale('log')
+    plt.ylim(bottom=1e-6, top=1e-0)  # Set the lower limit of y-axis to 10^-6
 
     # Save the figure to a buffer and encode as base64 for embedding or saving
     buf_interpolated_cdf = BytesIO()
@@ -563,7 +566,7 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
                     print(f"Error accessing data slice: {e}")
 
             group_idx += 1  # Increment group index after each inner loop
-        print("i:", i)
+        #print("i:", i)
 
     close_connection()
     

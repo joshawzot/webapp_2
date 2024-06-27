@@ -8,6 +8,9 @@ APP_SECRET_KEY = '1234'
 #ENG = False
 ENG = True
 
+#CHECk_DB is to enable autom mail notification
+CHECK_DB = True
+
 #Analyze type
 #MULTI_DATABASE_ANALYSIS = True
 MULTI_DATABASE_ANALYSIS = False

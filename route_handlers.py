@@ -42,6 +42,7 @@ import io
 from PIL import Image
 
 from db_monitor import *
+from scheduler import scheduler  # Import the scheduler instance
 # Custom module imports
 #from generate_plot_vertical_xn import generate_plot_vertical_xn
 #from generate_plot_horizontal_boxplotsigma_xn import generate_plot_horizontal_boxplotsigma_xn
@@ -261,10 +262,11 @@ def dynamodb_home():
 
 @app.route('/home-page', methods=['GET'])   # also Defines a route for the root URL
 def home_page():
-    print("Home page route is set up.")
-    #if not scheduler.get_job('Schema Monitor'):
-        #print("scheduler")
-        #scheduler.add_job(id='Schema Monitor', func=check_for_new_schemas, trigger='interval', minutes=1)
+    #print("Home page route is set up.")
+    #if CHECK_DB:
+        #if not scheduler.get_job('Schema Monitor'):
+            #print("scheduler")
+            #scheduler.add_job(id='Schema Monitor', func=check_for_new_schemas, trigger='interval', minutes=1)
     """Get a list of databases available."""
     try:
         conn = create_connection()

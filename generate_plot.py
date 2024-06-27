@@ -135,8 +135,30 @@ if MULTI_DATABASE_ANALYSIS:
         return encoded_plots
 
 else:
+    def reorder_tables(table_names):
+        # Define the desired order
+        desired_order = [
+            'conductance_25c_csv',
+            'conductance_55c_csv',
+            'conductance_85c_csv',
+            'conductance_125c_csv',
+            'conductance_85c_2_csv',
+            'conductance_55c_2_csv',
+            'conductance_25c_2_csv'
+        ]
+        
+        # Create a dictionary to map table names to their desired positions
+        order_map = {name: i for i, name in enumerate(desired_order)}
+        
+        # Reorder according to the desired sequence
+        reordered_tables = sorted(table_names, key=lambda name: order_map.get(name, float('inf')))
+        
+        return reordered_tables
+
     def generate_plot(table_names, database_name, form_data):
         print("table_names:", table_names)
+        #table_names = reorder_tables(table_names)
+        #print("reordered_table_names:", table_names)
         aggregated_groups_by_selected_group = {group: [] for group in form_data.get('selected_groups', [])}
         print("aggregated_groups_by_selected_group:", aggregated_groups_by_selected_group)
         selected_groups = form_data.get('selected_groups', [])
@@ -166,13 +188,23 @@ else:
         
         # Process each table and collect data and statistics (only once)
         for table_name in table_names:
-            #groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, sub_array_size) #real selected_groups
             groups, stats, _, num_of_groups, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size) #real selected_groups
-            print("selected_groups:", selected_groups)
-            #print("groups:", groups)
-            #print("stats:", stats)
-            #print("num_of_groups:", num_of_groups)
+            print("selected_groups_original:", selected_groups)
+            
+            # Extract average and standard deviation values for each selected group
+            table_avg_values = [stat[2] for stat in stats]  # Index 2 is average
+            table_std_values = [stat[3] for stat in stats]  # Index 3 is standard deviation
 
+            # Sort groups based on average values in ascending order
+            sorted_indices = sorted(range(len(table_avg_values)), key=lambda x: table_avg_values[x])
+            groups = [groups[i] for i in sorted_indices]
+            table_avg_values = [table_avg_values[i] for i in sorted_indices]
+            table_std_values = [table_std_values[i] for i in sorted_indices]
+            stats = [stats[i] for i in sorted_indices]
+            #selected_groups = [selected_groups[i] for i in sorted_indices]
+            #print("selected_groups_after_sorting:", selected_groups)
+
+            # Normalize and process the selected groups after sorting
             normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
             print("normalized_groups:", normalized_groups)
             print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
@@ -189,10 +221,6 @@ else:
             # Calculate overlaps for each individual table
             overlaps, group_stats = calculate_overlap(groups, selected_groups, sub_array_size)
             all_overlaps.append(overlaps)  # Collecting overlaps for all tables including individual ones
-
-            # Extract average and standard deviation values for each selected group
-            table_avg_values = [stat[2] for stat in stats]  # Index 2 is average
-            table_std_values = [stat[3] for stat in stats]  # Index 3 is standard deviation
 
             avg_values.append(table_avg_values)
             std_values.append(table_std_values)
@@ -211,10 +239,10 @@ else:
         #print_average_values_table(avg_values, table_names, selected_groups)
         #return avg_values, std_values, table_names, selected_groups
         #return 0
-        print("group_data:", group_data)
+        #print("group_data:", group_data)
         #print("all_groups:", all_groups)
 
-        print("aggregated_window_values:", aggregated_window_values)
+        #print("aggregated_window_values:", aggregated_window_values)
 
         #if selected_groups == list(range(16)):    
             #encoded_plots.append(plot_min_4level_table(best_groups_append, min_overlap_append, table_names))

@@ -23,7 +23,14 @@ def check_for_new_schemas():
         SELECT argument FROM general_log
         WHERE command_type = 'Query'
         AND event_time >= '{one_minute_ago}'
-        AND argument LIKE '%CREATE DATABASE%' OR argument LIKE '%CREATE SCHEMA%'
+        AND (
+            argument LIKE '%CREATE DATABASE%' OR 
+            argument LIKE '%CREATE SCHEMA%' OR 
+            argument LIKE '%DROP DATABASE%' OR 
+            argument LIKE '%DROP SCHEMA%' OR 
+            argument LIKE '%ALTER TABLE%' OR 
+            argument LIKE '%DROP TABLE%'
+        )
         AND argument NOT LIKE '%general_log%'
         """
 
@@ -37,7 +44,7 @@ def check_for_new_schemas():
                 send_email(
                     "Schema Creation Alert",
                     f"A new schema was created with the command: {command}",
-                    ['joshawzot@gmail.com', 'victor.hsiao@tetramem.com']
+                    ['victor.hsiao@tetramem.com', 'max.zhang@tetramem.com', 'mingyi.rao@tetramem.com', 'mingche.wu@tetramem.com']
                 )
         else:
             print("No new schemas found.")
