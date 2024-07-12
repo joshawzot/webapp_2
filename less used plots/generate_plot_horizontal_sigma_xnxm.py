@@ -26,10 +26,10 @@ def generate_plot_horizontal_sigma_xnxm(table_names, database_name):
 
     #plt.xlabel(x_axis_label, fontsize=16)  # Adjust this as needed
     #plt.ylabel(left_y_axis_label, fontsize=16)  # Adjust this as needed
-    plt.legend(fontsize=16)
+    plt.legend(fontsize=12)
     plt.grid(True)
-    plt.yticks(fontsize=16)
-    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=12)
+    plt.xticks(fontsize=12)
 
     # Save the plot to a BytesIO object
     buf = BytesIO()

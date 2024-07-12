@@ -91,21 +91,21 @@ def generate_plot_horizontal_boxplotsigma_xnxm(table_names, database_name):
     ax_right.axhline(average_sigma, linestyle='dashed', color='green', label='Avg Sigma')
 
     # Set the label and color for the right y-axis
-    ax_right.set_ylabel(right_y_axis_label, color='blue', fontsize=15)
+    ax_right.set_ylabel(right_y_axis_label, color='blue', fontsize=12)
     ax_right.tick_params(axis='y', labelcolor='blue')
 
     # Set the label and color for the left y-axis
-    ax.set_ylabel(left_y_axis_label, color='black', fontsize=15)
+    ax.set_ylabel(left_y_axis_label, color='black', fontsize=12)
     ax.tick_params(axis='y', labelcolor='black')
 
     # Add mean lines
     ax.plot(range(1, len(x_values) + 1), mean_values, marker='o', color='red', label='Mean', markersize=3)
 
-    ax.set_xlabel(x_axis_label, fontsize=15)
+    ax.set_xlabel(x_axis_label, fontsize=12)
     ax.set_xticks(range(1, len(x_values) + 1, 2))  # Only show every second tick
     rounded_x_values = ["{:.2f}".format(value) for value in x_values[::2]]
-    ax.set_xticklabels(rounded_x_values, rotation=45, fontsize=10)  # Show the corresponding labels for the selected ticks
-    plt.yticks(fontsize=10)
+    ax.set_xticklabels(rounded_x_values, rotation=45, fontsize=12)  # Show the corresponding labels for the selected ticks
+    plt.yticks(fontsize=12)
 
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10, prune='both'))  # Choose a reasonable value for nbins
 
@@ -115,7 +115,7 @@ def generate_plot_horizontal_boxplotsigma_xnxm(table_names, database_name):
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     yticks_left = ax.get_yticks()
     formatted_yticks_left = ['{:.0f}'.format(ytick * 1e6) for ytick in yticks_left]
-    ax.set_yticklabels(formatted_yticks_left, fontsize=10)
+    ax.set_yticklabels(formatted_yticks_left, fontsize=12)
 
     ax_right.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     yticks_right = ax_right.get_yticks()
@@ -128,7 +128,7 @@ def generate_plot_horizontal_boxplotsigma_xnxm(table_names, database_name):
     formatted_average_sigma = '{:.2f}'.format(average_sigma * 1e6)
     labels_right[-1] += f': {formatted_average_sigma}'
 
-    ax.legend(lines + lines_right, labels + labels_right, loc='upper left', fontsize=10)
+    ax.legend(lines + lines_right, labels + labels_right, loc='upper left', fontsize=12)
 
     # Save the plot to a BytesIO object
     buf = BytesIO()

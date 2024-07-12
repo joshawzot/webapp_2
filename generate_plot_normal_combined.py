@@ -231,7 +231,7 @@ def plot_average_values_table_2(avg_values, group_names, figsize=(12, 8)):
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(12)
-    table.scale(1, 1.2)
+    table.scale(1, 2)
 
     plt.title('Average Values Table')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -261,7 +261,7 @@ def plot_std_values_table_2(std_values, group_names, figsize=(12, 8)):
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(12)
-    table.scale(1, 1.2)
+    table.scale(1, 2)
 
     plt.title('Standard Deviation Values Table')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -294,10 +294,10 @@ def plot_2uS_table(ppm, selected_groups, figsize=(12, 8)):
     table = ax.table(cellText=table_data, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(12)
-    table.scale(1, 1.2)  # Adjust scale for better readability
+    table.scale(1, 2)  # Adjust scale for better readability
 
     # Set the plot title and adjust the plot
-    plt.title('2uS_ppm', fontsize=14, pad=15)
+    plt.title('2uS_ppm', fontsize=12, pad=15)
     plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.05)  # Adjust for title and better table fit
 
     # Save the plot to a buffer

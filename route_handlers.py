@@ -309,39 +309,44 @@ def home_page():
         #return render_template('home_page.html', databases=databases, image_urls=image_urls, powerpoint_url=powerpoint_url)
         #return render_template('home_page.html', databases=databases, powerpoint_url=powerpoint_url)
 
-        if MULTI_DATABASE_ANALYSIS:
-            return render_template('home_page_new.html', databases=databases)
-        else:
-            return render_template('home_page.html', databases=databases)
+        return render_template('home_page.html', databases=databases)
 
     except mysql.connector.Error as err:
         return str(err)
 
-@app.route('/data-analysis', methods=['POST'])
+@app.route('/data-analysis', methods=['POST', 'GET'])
 def data_analysis():
-    # Extract database and plot function from form and store in session
-    session['database'] = request.form['database']
-    database = session['database']
-    plot_function = "None"
+    if request.method == 'POST':
+        # Only attempt to access form data if the request is POST
+        session['database'] = request.form.get('database')
+        if not session['database']:
+            # Properly handle the case where 'database' key is missing in form data
+            abort(400, description="Missing required form data: database")
+
+    # Check if 'database' is stored in session, if not, handle it or redirect
+    database = session.get('database')
+    if not database:
+        # Handle the absence of database information, e.g., redirect to a form or show an error
+        return redirect(url_for('some_form_route'))  # Redirect to a page to get the database input
+
+    plot_function = "None"  # This could also be dynamically set based on POST or other conditions
 
     try:
         tables = fetch_tables(database)  # Retrieve table data from the database
-        
-        # Prepare a comma-separated string of table names
         table_names = ','.join(table['table_name'] for table in tables)
         print("table_names:", table_names)
 
-        # Pass the necessary variables to the template
-        if MULTI_DATABASE_ANALYSIS:
-            return render_template('list_tables_new.html', db_tables=db_tables, databases=databases)
-        else:
-            return render_template('list_tables.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
-            #return render_template('list_tables_simple.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
+        return render_template('list_tables.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
 
     except mysql.connector.Error as err:
         # Log and handle any database errors gracefully
         print("MySQL Error: ", err)
         return str(err), 500
+
+    except Exception as e:
+        # General error handling
+        print("Error: ", e)
+        return str(e), 500
 
 @app.route('/view-table/<database>/<table_name>', methods=['GET'])
 def view_table(database, table_name):
@@ -666,63 +671,6 @@ def fetch_all_numeric_data(table_name, database_name):
         connection.close()
 
     return data, data_dimension
-
-#view plot for MULTI_DATABASE_ANALYSIS
-@app.route('/view-plot-multi-database/<plot_function>', methods=['GET', 'POST'])
-def view_plot_multi_database(plot_function):
-
-    if request.method == "POST":
-        print("POST:::::::::::::::::::::::::::::::::")
-        tables = session.get('tables', [])
-        if not tables:
-            return jsonify({"error": "No tables specified"}), 400
-        print("POST tables:", tables)
-        # Check if the user has made a plot function choice
-        plot_function_choice = request.form.get('plot_choice')
-        if plot_function_choice:
-            plot_function = plot_function_choice
-            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
-                return render_template(f'input_form_generate_plot_new.html', plot_function=plot_function)             
-            else:
-                return jsonify({"error": "choice not selected"}), 400
-
-        # Ensure plot_function has a value before proceeding
-        if plot_function:
-            print(f"plot_function: {plot_function}")  # Now plot_function should have a value
-
-            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
-                # Handle the form data based on the plot function and tables
-                form_data_handlers = {
-                    "generate_plot": get_form_data_generate_plot,
-                    "generate_plot_combined": get_form_data_generate_plot,
-                    "generate_plot_separate": get_form_data_generate_plot,
-                }
-                form_data = form_data_handlers[plot_function](request.form)
-
-                # Store the form data with a unique identifier in Redis
-                unique_id = str(uuid.uuid4())
-                redis_client.set(unique_id, json.dumps({
-                    "database_tables": tables,
-                    "plot_function": plot_function,
-                    "form_data": form_data
-                }))
-
-                new_url = f"/render-plot-multi-database/{unique_id}"
-                return redirect(new_url)
-            else:
-                return jsonify({"error": "Invalid plot function selection"}), 400
-
-        else:
-            return jsonify({"error": "Plot function not selected"}), 400
-
-    else:  # GET request handling
-        print("GET:::::::::::::::::::::::::::::::::")
-        table_identifiers = request.args.get('tables', '')
-        if not table_identifiers:
-            return jsonify({"error": "No tables specified"}), 400
-        session['tables'] = [tuple(t.split('.')) for t in table_identifiers.split(',') if '.' in t]
-        print("GET tables:", session['tables'])
-        return render_template('choose_plot_function_form.html', tables=session['tables'])
 
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):

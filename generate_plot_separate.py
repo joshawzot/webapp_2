@@ -182,8 +182,8 @@ def plot_combined_window_analysis_table(aggregated_window_values, selected_group
     if len(table_data) > 1:  # Ensure there's data beyond the header
         table = ax.table(cellText=table_data, loc='center', cellLoc='center')
         table.auto_set_font_size(False)
-        table.set_fontsize(8)
-        table.scale(1, 1.2)
+        table.set_fontsize(12)
+        table.scale(1, 2)
         ax.set_title('Combined Window Analysis Across Tables', fontweight="bold")
     else:
         ax.text(0.5, 0.5, "No window analysis data available", va='center', ha='center')

@@ -3,15 +3,10 @@
 {% block title %}Manage Databases{% endblock %}
 
 {% block content %}
-
 <div class="container">
     <div class="border p-3 mb-4">
         <h3>Create New Database:</h3>
         <form action="/create-database" method="post" class="mb-3">
-            <div class="form-group">
-                <label for="userName">User Name:</label>
-                <input type="text" name="userName" id="userName" class="form-control" placeholder="Enter your name">
-            </div>
             <div class="form-group">
                 <label for="newDatabaseName">Database Name:</label>
                 <input type="text" name="newDatabaseName" id="newDatabaseName" class="form-control" placeholder="Enter new database name">
@@ -19,5 +14,5 @@
             <button type="submit" class="btn btn-primary">Create Database</button>
         </form>
     </div>
-
+</div>
 {% endblock %}

@@ -14,7 +14,7 @@ np.set_printoptions(threshold=np.inf)
 
 # Constants
 FILTER_ZEROS = False
-FONT_SIZE = 20
+FONT_SIZE = 12
 
 REFL = 127
 REFL_ADC_READ = 49

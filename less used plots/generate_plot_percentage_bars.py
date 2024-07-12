@@ -79,15 +79,15 @@ def generate_plot_percentage_bars(table_name, database_name):
             mean, sigma = x.mean(), x.std()
             legend_entries.append((plt.Rectangle((0, 0), 1, 1, fc=color, edgecolor='none'), f"{col_name} (Mean: {mean:.2f}, Sigma: {sigma:.2f})"))
 
-        ax.legend(handles=[entry[0] for entry in legend_entries], labels=[entry[1] for entry in legend_entries], title='', fontsize=15, loc='upper left', bbox_to_anchor=(0, 1))
+        ax.legend(handles=[entry[0] for entry in legend_entries], labels=[entry[1] for entry in legend_entries], title='', fontsize=12, loc='upper left', bbox_to_anchor=(0, 1))
         plt.subplots_adjust(right=0.7)
 
         #ax.set_xlabel('Conductance', fontsize=20)
         #ax.set_ylabel('Percentage', fontsize=20)
         ax.xaxis.set_major_locator(plt.MaxNLocator(nbins=6))  # Adjusting the number of x-axis ticks
         ax.yaxis.set_major_locator(plt.MultipleLocator(base=5))
-        plt.xticks(rotation=45, fontsize=20)  # Rotating x-axis tick labels to avoid overlap
-        plt.yticks(fontsize=20)
+        plt.xticks(rotation=45, fontsize=12)  # Rotating x-axis tick labels to avoid overlap
+        plt.yticks(fontsize=12)
 
         start_col = col_idx + 1
 

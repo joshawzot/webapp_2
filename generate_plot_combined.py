@@ -14,7 +14,6 @@ from scipy.integrate import quad
 from fitter import Fitter
 import scipy.stats as stats
 from tools_for_plots import *
-from config import MULTI_DATABASE_ANALYSIS
 
 #combined
 def plot_histogram_with_fitting(aggregated_data, colors, figsize=(15, 10)):
@@ -91,119 +90,64 @@ def plot_histogram_with_fitting(aggregated_data, colors, figsize=(15, 10)):
     return encoded_plots_density, encoded_plots_percentage, fitting_params
 
 #combined
-if MULTI_DATABASE_ANALYSIS:
-    def generate_plot_combined(table_names, form_data):
-        # Initialize list for all encoded plots
-        encoded_plots = []
+def generate_plot_combined(table_names, database_name, form_data):
+    # Initialize list for all encoded plots
+    encoded_plots = []
 
-        # Prepare for data aggregation
-        # Ensure this dictionary accumulates lists for concatenation
-        aggregated_groups_by_selected_group = {group: [] for group in form_data.get('selected_groups', [])}
-        selected_groups = form_data.get('selected_groups', [])
+    # Prepare for data aggregation
+    # Ensure this dictionary accumulates lists for concatenation
+    aggregated_groups_by_selected_group = {group: [] for group in form_data.get('selected_groups', [])}
+    selected_groups = form_data.get('selected_groups', [])
 
-        # Fetch sub_array_size from form_data, which could be either a string or a list
-        sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
-        print("sub_array_size_raw:", sub_array_size_raw)
-        sub_array_size = tuple(sub_array_size_raw)
+    # Fetch sub_array_size from form_data, which could be either a string or a list
+    sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
+    print("sub_array_size_raw:", sub_array_size_raw)
+    sub_array_size = tuple(sub_array_size_raw)
+    print("B")
+    # Collect and aggregate data from each table
+    for table_name in table_names:
+        groups, stats, _, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
+        print('A')
+        #print(groups)
+        for group_index, group_data in enumerate(groups):
+            selected_group = selected_groups[group_index]
+            print("selected_group:", selected_group)
+            aggregated_groups_by_selected_group[selected_group].append(group_data)  # Append the group data as a list
+            
+    # Convert lists to NumPy arrays and then aggregate
+    aggregated_groups = [np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0]
 
-        # Collect and aggregate data from each table
-        for table_name in table_names:
-            groups, stats, _, _, selected_groups= get_group_data_new_multi_database(table_name, selected_groups, sub_array_size)  #(row, column)
-            #print(groups)
-            for group_index, group_data in enumerate(groups):
-                selected_group = selected_groups[group_index]
-                print("selected_group:", selected_group)
-                aggregated_groups_by_selected_group[selected_group].append(group_data)  # Append the group data as a list
-                
-        # Convert lists to NumPy arrays and then aggregate
-        aggregated_groups = [np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0]
+    # Set up color palette for plotting, adjusted for the number of selected groups
+    cmap = cm.get_cmap('viridis')
+    colors = [cmap(i / len(selected_groups)) for i in range(len(selected_groups))]
 
-        # Set up color palette for plotting, adjusted for the number of selected groups
-        cmap = cm.get_cmap('viridis')
-        colors = [cmap(i / len(selected_groups)) for i in range(len(selected_groups))]
+    # Process the aggregated dataset
+    encoded_plots_density, encoded_plots_percentage, fitting_params = plot_histogram_with_fitting(
+        aggregated_groups, colors
+    )
+    encoded_plots.extend(encoded_plots_density)
+    encoded_plots.extend(encoded_plots_percentage)
 
-        # Process the aggregated dataset
-        encoded_plots_density, encoded_plots_percentage, fitting_params = plot_histogram_with_fitting(
-            aggregated_groups, colors
-        )
-        encoded_plots.extend(encoded_plots_density)
-        encoded_plots.extend(encoded_plots_percentage)
+    # Overlap calculation for the combined dataset
+    specific_pairs = [(i, i + 1) for i in range(len(selected_groups) - 1)]
+    overlap_ppm = calculate_overlap_fit(fitting_params["Aggregated Data"], specific_pairs)
 
-        # Overlap calculation for the combined dataset
-        specific_pairs = [(i, i + 1) for i in range(len(selected_groups) - 1)]
-        overlap_ppm = calculate_overlap_fit(fitting_params["Aggregated Data"], specific_pairs)
+    # Overlap plots
+    combined_table_name = "Combined Data"
+    overlap_ppm_by_table = {combined_table_name: overlap_ppm}
+    encoded_combined_overlap_plot = plot_curve_overlap_table(overlap_ppm_by_table, {combined_table_name: selected_groups})
+    #encoded_plots.extend([plot for _, plot in encoded_combined_overlap_plot])
+    encoded_plots.append(encoded_combined_overlap_plot)
 
-        # Overlap plots
-        combined_table_name = "Combined Data"
-        overlap_ppm_by_table = {combined_table_name: overlap_ppm}
-        encoded_combined_overlap_plot = plot_curve_overlap_table(overlap_ppm_by_table, {combined_table_name: selected_groups})
-        #encoded_plots.extend([plot for _, plot in encoded_combined_overlap_plot])
-        encoded_plots.append(encoded_combined_overlap_plot)
+    # Statistics plot
+    encoded_statistics_plot = plot_overlap_statistics(overlap_ppm_by_table, [combined_table_name])
+    encoded_plots.append(encoded_statistics_plot)
+    
+    print("aggregated_groups:", aggregated_groups)
+    # Instead of an aggregated_groups list, use a dictionary with selected_group IDs as keys.
+    aggregated_groups_dict = {group: np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0}
 
-        # Statistics plot
-        encoded_statistics_plot = plot_overlap_statistics(overlap_ppm_by_table, [combined_table_name])
-        encoded_plots.append(encoded_statistics_plot)
-
-        return encoded_plots
-else:
-    def generate_plot_combined(table_names, database_name, form_data):
-        # Initialize list for all encoded plots
-        encoded_plots = []
-
-        # Prepare for data aggregation
-        # Ensure this dictionary accumulates lists for concatenation
-        aggregated_groups_by_selected_group = {group: [] for group in form_data.get('selected_groups', [])}
-        selected_groups = form_data.get('selected_groups', [])
-
-        # Fetch sub_array_size from form_data, which could be either a string or a list
-        sub_array_size_raw = form_data.get('sub_array_size', '324,64')  # Default to '324,64' if not present
-        print("sub_array_size_raw:", sub_array_size_raw)
-        sub_array_size = tuple(sub_array_size_raw)
-        print("B")
-        # Collect and aggregate data from each table
-        for table_name in table_names:
-            groups, stats, _, _, _= get_group_data_new(table_name, selected_groups, database_name, sub_array_size)  #(row, column)
-            print('A')
-            #print(groups)
-            for group_index, group_data in enumerate(groups):
-                selected_group = selected_groups[group_index]
-                print("selected_group:", selected_group)
-                aggregated_groups_by_selected_group[selected_group].append(group_data)  # Append the group data as a list
-                
-        # Convert lists to NumPy arrays and then aggregate
-        aggregated_groups = [np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0]
-
-        # Set up color palette for plotting, adjusted for the number of selected groups
-        cmap = cm.get_cmap('viridis')
-        colors = [cmap(i / len(selected_groups)) for i in range(len(selected_groups))]
-
-        # Process the aggregated dataset
-        encoded_plots_density, encoded_plots_percentage, fitting_params = plot_histogram_with_fitting(
-            aggregated_groups, colors
-        )
-        encoded_plots.extend(encoded_plots_density)
-        encoded_plots.extend(encoded_plots_percentage)
-
-        # Overlap calculation for the combined dataset
-        specific_pairs = [(i, i + 1) for i in range(len(selected_groups) - 1)]
-        overlap_ppm = calculate_overlap_fit(fitting_params["Aggregated Data"], specific_pairs)
-
-        # Overlap plots
-        combined_table_name = "Combined Data"
-        overlap_ppm_by_table = {combined_table_name: overlap_ppm}
-        encoded_combined_overlap_plot = plot_curve_overlap_table(overlap_ppm_by_table, {combined_table_name: selected_groups})
-        #encoded_plots.extend([plot for _, plot in encoded_combined_overlap_plot])
-        encoded_plots.append(encoded_combined_overlap_plot)
-
-        # Statistics plot
-        encoded_statistics_plot = plot_overlap_statistics(overlap_ppm_by_table, [combined_table_name])
-        encoded_plots.append(encoded_statistics_plot)
-        
-        print("aggregated_groups:", aggregated_groups)
-        # Instead of an aggregated_groups list, use a dictionary with selected_group IDs as keys.
-        aggregated_groups_dict = {group: np.concatenate(aggregated_groups_by_selected_group[group]) for group in selected_groups if len(aggregated_groups_by_selected_group[group]) > 0}
-
-        return encoded_plots
+    return encoded_plots
 
 
 

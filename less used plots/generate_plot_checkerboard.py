@@ -42,7 +42,7 @@ def generate_plot_checkerboard(table_name, database_name):
     # Add mean values as text annotations
     for i in range(board.shape[0]):
         for j in range(board.shape[1]):
-            text = ax.text(j, i, f'{board[i, j]:.2f}', ha='center', va='center', color='black', fontsize=10)
+            text = ax.text(j, i, f'{board[i, j]:.2f}', ha='center', va='center', color='black', fontsize=12)
 
     # Set up colorbar
     cbar = ax.figure.colorbar(im, ax=ax)

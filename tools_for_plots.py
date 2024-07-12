@@ -179,7 +179,7 @@ def plot_histogram(data, table_names, colors, figsize=(15, 10)):
             # Generate histogram for each subgroup with the specified bin edges
             plt.hist(subgroup, bins=bin_edges, color=colors[i], alpha=0.75, label=label, log=True)
     
-    plt.xlabel('Value', fontsize=12)
+    #plt.xlabel('Value', fontsize=12)
     plt.ylabel('Frequency', fontsize=12)
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
@@ -283,7 +283,7 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     ax_cdf.legend()
     ax_cdf.grid(True)
     # Set fixed x-axis limits for CDF plot
-    ax_cdf.set_xlim(0, 200)  # Setting x-axis minimum to 0 and maximum to 200
+    #ax_cdf.set_xlim(0, 200)  # Setting x-axis minimum to 0 and maximum to 200
     
     # Save sigma plot
     buf_sigma = BytesIO()
@@ -335,53 +335,62 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
             interp_common_x_2 = interp1d(unique_x2, unique_y2, fill_value="extrapolate")(common_x_all)
 
             # Convert sigma to CDF values
-            cdf_value_1 = norm.cdf(interp_common_x_1)
-            cdf_value_2 = norm.cdf(interp_common_x_2)
+            #cdf_value_1 = norm.cdf(interp_common_x_1)
+            #cdf_value_2 = norm.cdf(interp_common_x_2)
 
-            # Plotting the extrapolated parts
-            plt.plot(common_x_all, cdf_value_1, linestyle='-', color=colors[i], alpha=0.7)
-            plt.plot(common_x_all, cdf_value_2, linestyle='-', color=colors[i], alpha=0.7)
+            # Don't Convert sigma to CDF values, keep sigma values
+            cdf_value_1 = interp_common_x_1
+            cdf_value_2 = interp_common_x_2
 
-            # Find and mark intersection
-            idx_closest = np.argmin(np.abs(cdf_value_1 - cdf_value_2))
-            intersection_x = common_x_all[idx_closest]
-            intersection_y = cdf_value_1[idx_closest]
-            plt.scatter(intersection_x, intersection_y, color='red', s=50, zorder=5)
-            intersections.append((intersection_x, intersection_y))
+            # Check if both cdf_value_1 and cdf_value_2 are not all NaN before plotting and finding intersections
+            if not (np.isnan(cdf_value_1).all() or np.isnan(cdf_value_2).all()):
+                plt.plot(common_x_all, cdf_value_1, linestyle='-', color=colors[i], alpha=0.7)
+                plt.plot(common_x_all, cdf_value_2, linestyle='-', color=colors[i], alpha=0.7)
 
-            ber = np.abs(cdf_value_1[idx_closest])
-            ppm_ber = cdf_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
+                # Find and mark intersection only if both arrays have valid data
+                idx_closest = np.argmin(np.abs(cdf_value_1 - cdf_value_2))
+                intersection_x = common_x_all[idx_closest]
+                intersection_y = cdf_value_1[idx_closest]
+                plt.scatter(intersection_x, intersection_y, color='red', s=50, zorder=5)
+                intersections.append((intersection_x, intersection_y))
 
-            # Draw horizontal lines if x-differences are about 2 units apart
-            target_x_diff = 2
-            tolerance = 0.1
-            line_drawn = False
+                ber = np.abs(cdf_value_1[idx_closest])
+                #ppm_ber = cdf_to_ppm(ber)  # Assuming sigma_to_ppm is defined elsewhere
+                ppm_ber = sigma_to_ppm(ber)
+                #ppm_ber = ber
 
-            for idx in range(len(common_x_all) - 1):
-                for jdx in range(idx + 1, len(common_x_all)):
-                    x_diff = common_x_all[jdx] - common_x_all[idx]
-                    if abs(x_diff - target_x_diff) < tolerance:
-                        if cdf_value_2[jdx] > cdf_value_1[idx]:  # Check divergence
-                            plt.hlines(y=cdf_value_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
-                            horizontal_line_y_value = cdf_value_2[jdx]
-                            ppm = cdf_to_ppm(abs(horizontal_line_y_value))
-                            print(f"Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={cdf_value_2[jdx]}")
-                            print("ppm:", ppm)
-                            line_drawn = True
-                            break
-                if line_drawn:
-                    break
+                # Draw horizontal lines if x-differences are about 2 units apart
+                target_x_diff = 2
+                tolerance = 0.1
+                line_drawn = False
 
-            if not line_drawn:
-                print("No suitable points found to draw a horizontal line.")
+                for idx in range(len(common_x_all) - 1):
+                    for jdx in range(idx + 1, len(common_x_all)):
+                        x_diff = common_x_all[jdx] - common_x_all[idx]
+                        if abs(x_diff - target_x_diff) < tolerance:
+                            if cdf_value_2[jdx] > cdf_value_1[idx]:  # Check divergence
+                                plt.hlines(y=cdf_value_2[jdx], xmin=common_x_all[idx], xmax=common_x_all[jdx], color='green', linestyles='dotted')
+                                horizontal_line_y_value = cdf_value_2[jdx]
+                                #ppm = cdf_to_ppm(abs(horizontal_line_y_value))
+                                ppm = sigma_to_ppm(abs(horizontal_line_y_value))
+                                print(f"Horizontal line drawn from x={common_x_all[idx]} to x={common_x_all[jdx]} at y={cdf_value_2[jdx]}")
+                                print("ppm:", ppm)
+                                line_drawn = True
+                                break
+                    if line_drawn:
+                        break
 
-            ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm))
-    
+                if not line_drawn:
+                    print("No suitable points found to draw a horizontal line.")
+
+                ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm, round(abs(horizontal_line_y_value), 4)))
+        
     #plt.ylabel('CDF Value', fontsize=12)
     #plt.title('CDF Curves for BER Calculation')
     plt.grid(True)
-    plt.yscale('log')
-    plt.ylim(bottom=1e-6, top=1e-0)  # Set the lower limit of y-axis to 10^-6
+    #plt.yscale('log')
+    #plt.ylim(bottom=1e-6, top=100)  # Set the lower limit of y-axis to 10^-6
+    plt.ylim(bottom=-8, top=8)  # Set the lower limit of y-axis to 10^-6
 
     # Save the figure to a buffer and encode as base64 for embedding or saving
     buf_interpolated_cdf = BytesIO()
@@ -508,6 +517,8 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
 
     # Convert fetched data to a NumPy array for easier manipulation
     data_np = np.array(data)  # Assume the scaling factor was removed for clarity
+
+    data_np[data_np == 0] = 1  #0 is not working, why?
 
     # Check if the average of data_np is more than 1, then scale data_np by multiplying it with 1e-6
     if np.mean(data_np) > 1:
@@ -947,7 +958,7 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
         table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
         table.auto_set_font_size(False)
         table.set_fontsize(8)
-        table.scale(1, 1.2)
+        table.scale(1, 2)
         ax.set_title(title)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
@@ -1010,9 +1021,9 @@ def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_mat
 
     return encoded_image1, encoded_image2
 
-def plot_average_values_table(avg_values, table_names, selected_groups, figsize=(12, 8)):
+def plot_average_values_table(avg_values, table_names, selected_groups, figsize=(15, 10)):
     fig, ax = plt.subplots(figsize=figsize)
-    ax.axis('tight')
+    #ax.axis('tight')
     ax.axis('off')
 
     # Extend header to include 'Row Avg' and 'Row Std Dev'
@@ -1048,9 +1059,9 @@ def plot_average_values_table(avg_values, table_names, selected_groups, figsize=
     column_widths = get_column_widths(table_data)
 
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.2)
+    #table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1, 2)
 
     plt.title('Average table')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -1097,9 +1108,9 @@ def print_average_values_table(avg_values, table_names, selected_groups):
     print('\t'.join(footer_avg))
     print('\t'.join(footer_std))
 
-def plot_std_values_table(std_values, table_names, selected_groups, figsize=(12, 8)):
+def plot_std_values_table(std_values, table_names, selected_groups, figsize=(15, 10)):
     fig, ax = plt.subplots(figsize=figsize)
-    ax.axis('tight')
+    #ax.axis('tight')
     ax.axis('off')
 
     header = ["State"] + [f"{table_name}" for table_name in table_names] + ["Row Avg", "Row Std Dev"]
@@ -1133,9 +1144,9 @@ def plot_std_values_table(std_values, table_names, selected_groups, figsize=(12,
     column_widths = get_column_widths(table_data)
 
     table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.2)
+    #table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1, 2)
     
     plt.title('Sigma table')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -1148,17 +1159,18 @@ def plot_std_values_table(std_values, table_names, selected_groups, figsize=(12,
 
     return encoded_image
 
-def plot_colormap(data, title, figsize=(10, 8)):
-    g_range=[0, 200]
+def plot_colormap(data, title, figsize=(30, 15)):
+    # Set minimum value to 0 and maximum value to the largest value in the data scaled by 1e6
+    g_range = [0, np.max(data * 1e6)]
+    
     fig, ax = plt.subplots(figsize=figsize)
-    if g_range:
-        cax = ax.imshow(data * 1e6, cmap=plt.cm.viridis, origin="lower", vmin=g_range[0], vmax=g_range[1])
-    else:
-        cax = ax.imshow(data * 1e6, cmap=plt.cm.viridis, origin="lower")
+    # Apply the g_range for color scaling
+    cax = ax.imshow(data * 1e6, cmap=plt.cm.viridis, origin="lower", vmin=g_range[0], vmax=g_range[1])
 
     fig.colorbar(cax)
     
-    ax.set_title(title)
+    #ax.set_title(title)
+    ax.set_title(title, fontsize=12)
     
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -1178,7 +1190,9 @@ def get_full_table_data(table_name, database_name):
     
     # Assuming the data is structured as a list of tuples, where each tuple represents a row in the table
     data_matrix = np.array(data)
-    
+
+    data_matrix[data_matrix == 0] = 1   #0 is not working, why?
+
     # Check if the average of data_matrix is more than 1, then scale data_matrix by multiplying it with 1e-6
     if np.mean(data_matrix) > 1:
         data_matrix = data_matrix * 1e-6
@@ -1264,7 +1278,7 @@ def plot_curve_overlap_table(overlap_ppm_by_table, selected_groups_by_table, fig
     table = ax.table(cellText=table_data, loc='center', colWidths=get_column_widths(table_data), cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(8)
-    table.scale(1, 1.2)
+    table.scale(1, 2)
     ax.set_title('Combined Overlap for All Tables')
 
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -1497,95 +1511,89 @@ def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, f
     return encoded_image
 
 def plot_ber_tables(ber_results, table_names):
-    def setup_figure():
-        fig, ax = plt.subplots(figsize=(15, 10))
-        ax.axis('tight')
-        ax.axis('off')
-        return fig, ax
-    
     sigma_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
     ppm_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
     uS_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
-    
+    additional_data_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
+
     sigma_data = [sigma_headers]
     ppm_data = [ppm_headers]
     uS_data = [uS_headers]
+    additional_data = [additional_data_headers]
 
     grouped_data = {}
     for entry in ber_results:
         key = entry[1]
         if key not in grouped_data:
             grouped_data[key] = []
-        grouped_data[key].append((entry[2], entry[3], entry[4]))
+        grouped_data[key].append((entry[2], entry[3], entry[4], entry[5]))
 
     for key, values in grouped_data.items():
         sigma_row = [key]
         ppm_row = [key]
         uS_row = [key]
-        for sigma, ppm, uS in values:
+        additional_row = [key]
+        for sigma, ppm, uS, additional in values:
             sigma_row.append(f"{sigma:.4f}")
             ppm_row.append(f"{ppm:.0f}")
             uS_row.append(f"{uS:.0f}")
-        # Calculate and append row averages formatted to four decimal places
-        sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:]]):.4f}")
-        ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:]]):.0f}")
-        uS_row.append(f"{np.mean([float(val) for val in uS_row[1:]]):.0f}")
+            additional_row.append(str(additional))
+        sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:] if val != key]):.4f}")
+        ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:] if val != key]):.0f}")
+        uS_row.append(f"{np.mean([float(val) for val in uS_row[1:] if val != key]):.0f}")
+        additional_row.append(str(np.mean([float(val) for val in additional_row[1:] if isinstance(val, (int, float))])))
         sigma_data.append(sigma_row)
         ppm_data.append(ppm_row)
         uS_data.append(uS_row)
+        additional_data.append(additional_row)
 
-    # Calculate column averages and append to data formatted to four decimal places
     sigma_col_avg = ["Col Avg"]
     ppm_col_avg = ["Col Avg"]
     uS_col_avg = ["Col Avg"]
+    additional_col_avg = ["Col Avg"]
     for col in range(1, len(sigma_data[0])):
         sigma_col = [float(row[col]) for row in sigma_data[1:] if row[col] != "Col Avg"]
         ppm_col = [float(row[col]) for row in ppm_data[1:] if row[col] != "Col Avg"]
         uS_col = [float(row[col]) for row in uS_data[1:] if row[col] != "Col Avg"]
+        additional_col = [float(row[col]) for row in additional_data[1:] if isinstance(row[col], (int, float)) and row[col] != "Col Avg"]
         sigma_col_avg.append(f"{np.mean(sigma_col):.4f}")
         ppm_col_avg.append(f"{np.mean(ppm_col):.0f}")
         uS_col_avg.append(f"{np.mean(uS_col):.0f}")
+        additional_col_avg.append(f"{np.mean(additional_col):.2f}")
     sigma_data.append(sigma_col_avg)
     ppm_data.append(ppm_col_avg)
     uS_data.append(uS_col_avg)
+    additional_data.append(additional_col_avg)
 
-    fig, ax = setup_figure()
-    sigma_table = ax.table(cellText=sigma_data, loc='center', cellLoc='center')
-    sigma_table.auto_set_font_size(False)
-    sigma_table.set_fontsize(10)
-    sigma_table.scale(1, 1.5)
-    plt.title("BER Sigma Values", fontsize=14)
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    encoded_sigma_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-    plt.close(fig)
+    # Initialize variables for storing encoded images
+    encoded_sigma_image, encoded_ppm_image, encoded_uS_image, encoded_additional_image = None, None, None, None
 
-    fig, ax = setup_figure()
-    ppm_table = ax.table(cellText=ppm_data, loc='center', cellLoc='center')
-    ppm_table.auto_set_font_size(False)
-    ppm_table.set_fontsize(10)
-    ppm_table.scale(1, 1.5)
-    plt.title("BER PPM Values", fontsize=14)
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    encoded_ppm_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-    plt.close(fig)
+    # Plotting tables with improved adjustments
+    for data, title in [(sigma_data, "y Values at intersection"), (ppm_data, "BER PPM Values at intersection"), (uS_data, "BER PPM Values at windows = 2"), (additional_data, "y Values at windows = 2")]:
+        fig, ax = plt.subplots(figsize=(15, 10))
+        ax.axis('off')
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+        column_widths = get_column_widths(data)
+        table = ax.table(cellText=data, loc='center', colWidths=column_widths, cellLoc='center')
+        table.set_fontsize(12)
+        table.scale(1, 2)  # Adjust scale to enhance clarity
+        plt.title(title, fontsize=12)
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        encoded_image = base64.b64encode(buf.getvalue()).decode('utf-8')
+        plt.close(fig)
+        
+        if title == "y Values at intersection":
+            encoded_sigma_image = encoded_image
+        elif title == "BER PPM Values at intersection":
+            encoded_ppm_image = encoded_image
+        elif title == "BER PPM Values at windows = 2":
+            encoded_uS_image = encoded_image
+        else:
+            encoded_additional_image = encoded_image
 
-    fig, ax = setup_figure()
-    uS_table = ax.table(cellText=uS_data, loc='center', cellLoc='center')
-    uS_table.auto_set_font_size(False)
-    uS_table.set_fontsize(10)
-    uS_table.scale(1, 1.5)
-    plt.title("2uS BER Values", fontsize=14)
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    encoded_2uS_image = base64.b64encode(buf.getvalue()).decode('utf-8')
-    plt.close(fig)
-
-    return encoded_sigma_image, encoded_ppm_image, encoded_2uS_image
+    return encoded_sigma_image, encoded_ppm_image, encoded_uS_image, encoded_additional_image
 
 '''import csv
 import io
@@ -1635,7 +1643,7 @@ def plot_ber_tables(ber_results, table_names):
     
     return sigma_csv.getvalue(), ppm_csv.getvalue()'''
 
-def plot_combined_window_analysis_table(aggregated_window_values, figsize=(12, 8)):
+def plot_combined_window_analysis_table(aggregated_window_values, figsize=(15, 10)):
     tables_order = sorted(set(table_name for (table_name, _), _ in aggregated_window_values.items()))
 
     # Initialize an empty list to maintain the order of state pairs based on their appearance
@@ -1676,12 +1684,13 @@ def plot_combined_window_analysis_table(aggregated_window_values, figsize=(12, 8
 
     # Plot combined table
     fig, ax = plt.subplots(figsize=figsize)
-    ax.axis('tight')
+    #ax.axis('tight')
     ax.axis('off')
-    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
-    table.auto_set_font_size(False)
+    column_widths = get_column_widths(table_data)
+    table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
+    #table.auto_set_font_size(False)
     table.set_fontsize(12)
-    table.scale(1, 1.2)
+    table.scale(1, 2)
     ax.set_title('Window table 99% to 1%')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
@@ -1776,7 +1785,7 @@ def plot_combined_window_analysis_table_2(aggregated_window_values, figsize=(12,
     table = ax.table(cellText=table_data, loc='center', cellLoc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(12)
-    table.scale(1, 1.2)
+    table.scale(1, 2)
     #ax.set_title('Window table 99% to 1%')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 

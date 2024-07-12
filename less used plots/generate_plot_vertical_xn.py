@@ -28,9 +28,9 @@ def generate_plot_vertical_xn(table_name, database_name):
 
     #plt.xlabel(x_axis_label, fontsize=15)  # x-axis label
     #plt.ylabel(left_y_axis_label, fontsize=15)   # y-axis label
-    plt.yticks(fontsize=15)
-    plt.xticks(fontsize=15)
-    plt.legend(fontsize=15)
+    plt.yticks(fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.legend(fontsize=12)
     plt.grid(True)
 
     # Save the plot to a BytesIO object

@@ -6,25 +6,6 @@
 <div class="container">
     <!-- Add a Return to Home Page button -->
     <a href="/home-page" class="btn btn-primary mb-3">Return to Home Page</a>
-    <div class="row mb-3">
-        <!-- Table Name Search Field (common) -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="search-table-name">Table Name:</label>
-                <input type="text" class="form-control" id="search-table-name" placeholder="Search table name..." oninput="filterTablesByName()">
-            </div>
-        </div>
-
-        {% set search_sections = ["lot", "wafer", "die", "dut", "d", "tc", "task", "date", "file type"] %}
-        {% for section in search_sections %}
-        <div class="col-md-1">
-            <div class="form-group">
-                <label for="search-section-{{ loop.index }}">{{ section }}:</label>
-                <input type="text" class="form-control" id="search-section-{{ loop.index }}" placeholder="Search..." oninput="tableSelected()">
-            </div>
-        </div>
-        {% endfor %}
-    </div>
 
     <!-- Simplified Drag and Drop File Upload Area -->
     <div class="border p-3 mb-4">
@@ -53,22 +34,45 @@
         <button class="btn btn-warning" id="moveSelected">Move Selected</button>
         <button class="btn btn-info" id="copySelected">Copy Selected</button>
         <button class="btn btn-secondary" id="plotSelected">Plot Selected</button>
+        <button class="btn btn-success" id="downloadSelected">Download Selected as CSV</button>
     </div>
 
     <ul id="table-list" class="list-group no-bullets">
         {% for table in tables %}
             <li data-table-name="{{ table['table_name'] }}" class="table-item">
                 <input type="checkbox" id="select-table-{{ loop.index }}" class="table-checkbox" data-table-name="{{ table['table_name'] }}">
-                <!-- Display table name and dimensions -->
                 <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('view_table', database=database, table_name=table['table_name']) }}'">View</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteRecord('{{ database }}', '{{ table['table_name'] }}')">Delete This Table</button>
-                <button class="btn btn-success btn-sm" onclick="window.location.href='{{ url_for('download_csv', database=database, table_name=table['table_name']) }}'">Download as CSV</button>
                 <span contenteditable="true" onblur="renameTable('{{ database }}', '{{ table['table_name'] }}', this.innerText)">{{ table['table_name'] }}</span>
                 <span id="table-name-{{ loop.index }}" class="table-name">({{ table['dimensions'] }})</span>
             </li>
         {% endfor %}
     </ul>            
 </div>
+
+<script>
+    document.getElementById('downloadSelected').addEventListener('click', function() {
+        const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+        let tableNames = [];
+
+        checkboxes.forEach(function(checkbox) {
+            tableNames.push(checkbox.getAttribute('data-table-name'));
+        });
+
+        if (tableNames.length > 0) {
+            tableNames.forEach(function(tableName) {
+                // Dynamically create a link and click it
+                const link = document.createElement('a');
+                link.href = `/download_csv?database={{ database }}&table_name=${tableName}`;
+                link.download = `${tableName}.csv`;  // This suggests a filename but may not work as expected for all server configurations
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        } else {
+            alert('Please select at least one table to download.');
+        }
+    });
+</script>
 
 <script src="/static/js/drag_and_drop.js"></script>
 
@@ -82,11 +86,11 @@
         });
         
         if (tableNames.length > 0) {
-            // Generate the base URL without the table_names parameter, using a placeholder if necessary
             let baseUrl = "{{ url_for('view_plot', database=database, plot_function=plot_function, table_name='PLACEHOLDER') }}";
-            // Replace the placeholder with the actual table_names joined by commas
             baseUrl = baseUrl.replace('PLACEHOLDER', tableNames.join(','));
             
+            // Update the current state before redirecting
+            window.history.replaceState({}, '', window.location.href);
             window.location.href = baseUrl;
         } else {
             alert('Please select at least one table to plot.');
