@@ -57,7 +57,6 @@ from generate_plot import generate_plot
 from generate_plot_normal_combined import generate_plot_normal_combined
 from generate_plot_combined import generate_plot_combined
 from generate_plot_separate import generate_plot_separate
-from generate_plot_miao import generate_plot_miao
 #from generate_plot_64x64 import generate_plot_64x64
 #from generate_plot_VCR import generate_plot_VCR
 #from generate_plot_TCR import generate_plot_TCR
@@ -437,38 +436,6 @@ def render_plot_multi_database(unique_id):
     except Exception as e:
         return f"Error: {e}", 500
 
-@app.route('/render-plot-miao/<unique_id>')
-def render_plot_miao(unique_id):
-    # Attempt to fetch cached plot data using unique_id as the cache key
-    cache_key = f"plot_data_{unique_id}"
-    cached_plot_data = cache.get(cache_key)
-
-    if cached_plot_data:
-        # If cached data is found, use it to render the plot directly
-        return render_template('plot.html', plot_data=cached_plot_data)
-
-    # If no cache is found, retrieve the stored data from Redis
-    stored_data_json = redis_client.get(unique_id)
-    if not stored_data_json:
-        return "Error: Invalid ID or Data Expired", 404
-    
-    stored_data = json.loads(stored_data_json)
-
-    database = stored_data["database"]
-    table_name = stored_data["table_name"]
-
-    try:
-        plot_data = generate_plot_miao(table_name.split(','), database)
-        if not isinstance(plot_data, list):
-            plot_data = [plot_data]
-
-        # Cache the generated plot data for future requests
-        cache.set(cache_key, plot_data, timeout=None)
-
-        return render_template('plot.html', plot_data=plot_data)
-    except Exception as e:
-        return f"Error: {e}", 500
-
 '''@app.route('/render-plot/<unique_id>')
 def render_plot(unique_id):
     # Attempt to fetch cached plot data using unique_id as the cache key
@@ -721,20 +688,8 @@ def view_plot(database, table_name, plot_function):
         #print(len(table_names))
         table_names = table_name.split(',')
         print(table_names)
-        if len(table_names) == 3 and all("miao" in name for name in table_names):
-            print('maio')
-            # Store the form data with a unique identifier in Redis
-            unique_id = str(uuid.uuid4())
-            redis_client.set(unique_id, json.dumps({
-                "database": database,
-                "table_name": table_name,
-            }))
-
-            new_url = f"/render-plot-miao/{unique_id}"
-            return redirect(new_url)
-        else: 
-            print("GET:::::::::::::::::::::::::::::::::")
-            return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
+        print("GET:::::::::::::::::::::::::::::::::")
+        return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
 
 '''
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])

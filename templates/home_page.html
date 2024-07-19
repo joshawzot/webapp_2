@@ -7,7 +7,6 @@
     <a href="/all-databases" class="btn btn-info mb-3">Create New Database</a>
 
     <div class="border p-3 mb-4">
-        <h3>Database:</h3>
         <!-- Search input for filtering databases -->
         <input type="text" id="databaseFilter" class="form-control mb-3" placeholder="Filter databases...">
 
@@ -27,28 +26,36 @@
 </div>
 
 <script>
-// Add event listener to filter input
-document.getElementById('databaseFilter').addEventListener('input', function(e) {
-    var filter = e.target.value.toLowerCase().trim(); // Normalize input for search
-    var databaseOptions = document.querySelectorAll('.database-option');
+document.addEventListener('DOMContentLoaded', (event) => {
+    // Add event listener to filter input
+    document.getElementById('databaseFilter').addEventListener('input', function(e) {
+        var filter = e.target.value.toLowerCase().trim(); // Normalize input for search
+        var databaseOptions = document.querySelectorAll('.database-option');
 
-    databaseOptions.forEach(function(option) {
-        var dbName = option.getAttribute('data-db').toLowerCase().trim(); // Normalize database names
-        if (dbName.includes(filter)) {
-            option.style.display = '';
-        } else {
-            option.style.display = 'none';
-        }
+        databaseOptions.forEach(function(option) {
+            var dbName = option.getAttribute('data-db').toLowerCase().trim(); // Normalize database names
+            if (dbName.includes(filter)) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+
+    document.querySelectorAll('.database-option').forEach(function(item) {
+        item.addEventListener('dblclick', function() {
+            var form = document.getElementById('databaseForm');
+            form.innerHTML += '<input type="hidden" name="database" value="' + item.getAttribute('data-db') + '">';
+            form.submit();
+        });
     });
 });
 
-document.querySelectorAll('.database-option').forEach(function(item) {
-    item.addEventListener('dblclick', function() {
-        var form = document.getElementById('databaseForm');
-        form.innerHTML += '<input type="hidden" name="database" value="' + item.getAttribute('data-db') + '">';
-        form.submit();
-    });
-});
+window.onpageshow = function(event) {
+    if (event.persisted) {
+        window.location.reload() 
+    }
+};
 </script>
 
 <style>

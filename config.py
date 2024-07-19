@@ -11,10 +11,6 @@ ENG = False
 #CHECk_DB is to enable autom mail notification
 CHECK_DB = True
 
-#Analyze type
-#MULTI_DATABASE_ANALYSIS = True
-MULTI_DATABASE_ANALYSIS = False
-
 # Initialize DB_CONFIG
 DB_CONFIG = {}
 

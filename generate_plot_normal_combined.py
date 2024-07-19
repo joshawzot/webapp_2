@@ -2,10 +2,10 @@ from tools_for_plots import *
 import io
 import base64
 import pandas as pd
-from config import MULTI_DATABASE_ANALYSIS
 from scipy.stats import norm  # Import norm from scipy.stats
 
 def plot_ber_tables_2(ber_results):
+    print("ber_results:", ber_results)
     def setup_figure():
         fig, ax = plt.subplots(figsize=(12, 8))
         ax.axis('tight')
@@ -13,8 +13,8 @@ def plot_ber_tables_2(ber_results):
         return fig, ax
     
     # Headers for Sigma and PPM tables
-    sigma_headers = ["Measurement", "Sigma Value"]
-    ppm_headers = ["Measurement", "PPM"]
+    sigma_headers = ["State/Transition", "Sigma Value"]
+    ppm_headers = ["State/Transition", "PPM"]
 
     sigma_data = [sigma_headers]
     ppm_data = [ppm_headers]
@@ -47,7 +47,7 @@ def plot_ber_tables_2(ber_results):
     ppm_table.auto_set_font_size(False)
     ppm_table.set_fontsize(12)
     ppm_table.scale(1, 1.5)
-    plt.title("PPM Values Table")
+    plt.title("BER")
 
     buf_ppm = BytesIO()
     plt.savefig(buf_ppm, format='png', bbox_inches='tight')
@@ -87,9 +87,9 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
         transformed_data_groups.append((sorted_data, sigma_values))
 
     plt.xlim(global_x_min, global_x_max)
-    plt.xlabel('Transformed Data Value', fontsize=12)
+    #plt.xlabel('Transformed Data Value', fontsize=12)
     plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Transformed CDF of Data by Groups')
+    #plt.title('Transformed CDF of Data by Groups')
     plt.legend()
     plt.grid(True)
 
@@ -219,7 +219,7 @@ def plot_average_values_table_2(avg_values, group_names, figsize=(12, 8)):
     ax.axis('tight')
     ax.axis('off')
 
-    header = ["Group"] + ["Average"]
+    header = ["State"] + ["Average"]
     table_data = [header]
 
     for i, avg in enumerate(avg_values):
@@ -233,8 +233,8 @@ def plot_average_values_table_2(avg_values, group_names, figsize=(12, 8)):
     table.set_fontsize(12)
     table.scale(1, 2)
 
-    plt.title('Average Values Table')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    plt.title('Average')
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -249,7 +249,7 @@ def plot_std_values_table_2(std_values, group_names, figsize=(12, 8)):
     ax.axis('tight')
     ax.axis('off')
 
-    header = ["Group"] + ["Standard Deviation"]
+    header = ["State"] + ["Standard Deviation"]
     table_data = [header]
 
     for i, std in enumerate(std_values):
@@ -263,8 +263,8 @@ def plot_std_values_table_2(std_values, group_names, figsize=(12, 8)):
     table.set_fontsize(12)
     table.scale(1, 2)
 
-    plt.title('Standard Deviation Values Table')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    plt.title('Sigma')
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -298,7 +298,7 @@ def plot_2uS_table(ppm, selected_groups, figsize=(12, 8)):
 
     # Set the plot title and adjust the plot
     plt.title('2uS_ppm', fontsize=12, pad=15)
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.05)  # Adjust for title and better table fit
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.05)  # Adjust for title and better table fit
 
     # Save the plot to a buffer
     buf = BytesIO()
@@ -327,7 +327,7 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
 
     # Process each table and collect data and statistics
     for table_name in table_names:
-        groups, stats, _, num_of_groups, _ = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
+        groups, stats, selected_groups = get_group_data_new(table_name, selected_groups, database_name, sub_array_size)
         # Aggregate data and stats
         for group_index, group_data in enumerate(groups):
             group_key = selected_groups[group_index]  # Assuming groups correspond to selected_groups by index
@@ -346,9 +346,14 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
         avg_values.append(all_avg)
         std_values.append(all_std)
 
-    group_names = [f'Group {i+1}' for i in range(len(all_groups))]
+    group_names = [f'State {i+1}' for i in range(len(all_groups))]
     encoded_plots = []
 
+    #color map
+    for table_name in table_names:
+        data_matrix, data_matrix_size = get_full_table_data(table_name, database_name)
+        encoded_plots.append(plot_colormap(data_matrix, title=f"Colormap for {table_name}"))
+                
     # Call plot_boxplot_2 with correct variables
     plot_data_boxplot = plot_boxplot_2(all_groups, group_names)
     encoded_plots.append(plot_data_boxplot)
@@ -363,6 +368,7 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     colors = get_colors(len(group_data))  # Assuming get_colors() generates a sufficient number of colors
     # Adjusted function call
     plot_data_original, plot_data_interpo, intersections, horizontal_line_y_value = plot_transformed_cdf_3(all_groups, group_names, selected_groups, colors)
+    #plot_data_sigma, plot_data_cdf, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
     print("intersections:", intersections)
     print("horizontal_line_y_value:", horizontal_line_y_value)
     print("selected_groups:", selected_groups)
@@ -372,25 +378,25 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     print("ppm:", ppm)
     print("A")
     table = plot_2uS_table(ppm, selected_groups)
-    encoded_plots.append(table)
+    '''encoded_plots.append(table)'''
     # Adding plots to the encoded_plots list
     encoded_plots.append(plot_data_original)
-    encoded_plots.append(plot_data_interpo)
+    '''encoded_plots.append(plot_data_interpo)'''
     print("B")
     encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(intersections)
-    encoded_plots.append(encoded_sigma_image)
+    '''encoded_plots.append(encoded_sigma_image)'''
     encoded_plots.append(encoded_ppm_image)
     print("C")
-    normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
+    '''normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
     print("normalized_groups:", normalized_groups)
-    print(f"Original: {selected_groups}, Normalized: {normalized_groups}")
-    window_values_99, window_values_999 = calculate_window_values(all_groups, normalized_groups)
+    print(f"Original: {selected_groups}, Normalized: {normalized_groups}")'''
+    '''window_values_99, window_values_999 = calculate_window_values(all_groups, normalized_groups)'''
     print("D")
     #print("window_values:", window_values)
     # Generate and append a single combined window analysis table plot
-    encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_99)
+    '''encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_99)
     encoded_plots.append(encoded_window_analysis_plot)
     encoded_window_analysis_plot = plot_combined_window_analysis_table_2(window_values_999)
-    encoded_plots.append(encoded_window_analysis_plot)
+    encoded_plots.append(encoded_window_analysis_plot)'''
     print("E")
     return encoded_plots

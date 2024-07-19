@@ -23,91 +23,6 @@ def calculate_statistics(data):
     std_dev = round(np.std(data), 2)
     outlier_percentage = round(np.sum(np.abs(data - mean) > 2.698 * std_dev) / len(data) * 100, 2)
     return mean, std_dev, outlier_percentage
-    
-def sort_table_names(table_names):
-    # Define a helper function to extract the numerical part from the table name
-    def extract_number(name):
-        # Find all occurrences of numbers in the string and return the first occurrence
-        numbers = re.findall(r'\d+', name)
-        return int(numbers[0]) if numbers else -1
-
-    # Sort the list of table names using the extracted number as the key
-    sorted_names = sorted(table_names, key=extract_number)
-    return sorted_names
-
-def calculate_windows_between_clusters(data_clusters, data_origin, stats, cluster_end_indices):
-    windows_details = []
-    start_idx = 0
-    overlapping_details = []  # List to store overlapping details
-    window_details = []  # List to store window details between clusters
-
-    # Convert cluster_end_indices to a set for efficient lookup
-    cluster_end_indices_set = set(cluster_end_indices)
-
-    for i in range(len(data_clusters) - 1):
-        # Skip overlap check for the last cluster of each date
-        if i in cluster_end_indices_set:
-            continue
-
-        current_max = round(np.max(data_clusters[i]), 2)
-        next_min = round(np.min(data_clusters[i + 1]), 2)
-        window = round(next_min - current_max, 2)
-
-        # Append window details and add 1 to the first and second column values
-        window_details.append((i + 1, i + 2, current_max, next_min, window))
-
-        overlapping_data = []
-
-        if window < 0:
-            # Overlapping clusters detected
-            for data_point, origin in zip(data_clusters[i], data_origin[start_idx:start_idx+len(data_clusters[i])]):
-                if data_point >= next_min:
-                    overlapping_data.append((*origin, data_point))
-                    overlapping_details.append(("Cluster " + str(i + 1), *origin, round(data_point, 2)))
-
-            for data_point, origin in zip(data_clusters[i + 1], data_origin[start_idx+len(data_clusters[i]):start_idx+len(data_clusters[i])+len(data_clusters[i + 1])]):
-                if data_point <= current_max:
-                    overlapping_data.append((*origin, data_point))
-                    overlapping_details.append(("Cluster " + str(i + 2), *origin, round(data_point, 2)))
-
-        windows_details.append((window, current_max, next_min, overlapping_data))
-        start_idx += len(data_clusters[i])
-
-    # Create a table image for window details
-    plt.figure(figsize=(12, 5))
-    ax_table_window = plt.gca()
-    ax_table_window.axis('on')
-    col_labels_window = ["Cluster", "Next Cluster", "Current Max", "Next Min", "Window Value"]
-    # Debug: Print the window_details to check their structure
-    print(window_details)
-    table_window = ax_table_window.table(cellText=window_details, colLabels=col_labels_window, loc='center')
-    table_window.auto_set_font_size(False)
-    table_window.set_fontsize(10)
-    table_window.scale(1, 1.5)
-    ax_table_window.axis('off')
-    plt.tight_layout()
-
-    # Save the Window Details Table figure
-    buf_table_window = BytesIO()
-    plt.savefig(buf_table_window, format='png', bbox_inches='tight')
-    buf_table_window.seek(0)
-    window_table_data = base64.b64encode(buf_table_window.getvalue()).decode('utf-8')
-    buf_table_window.close()
-
-    #return windows_details, overlapping_table_data, window_table_data
-    #return windows_details, window_table_data
-    return window_table_data
-
-def extract_date_time(table_name):
-    # Updated regex to match dates with hyphens or underscores
-    datetime_match = re.search(r'^\d{4}[-_]\d{2}[-_]\d{2}', table_name)
-    if datetime_match:
-        datetime_part = datetime_match.group()
-        # Replace underscore with hyphen if present
-        datetime_part = datetime_part.replace('_', '-')
-        return datetime.strptime(datetime_part, '%Y-%m-%d')
-    else:
-        raise ValueError("Invalid table name format")
 
 def plot_boxplot(data, table_names, figsize=(15, 10)):
     plt.figure(figsize=figsize) 
@@ -140,7 +55,7 @@ def plot_boxplot(data, table_names, figsize=(15, 10)):
         print("Error: Mismatch in the number of xticks and xticklabels.")
 
     plt.yticks(fontsize=12)
-    plt.ylabel('Conductance (u)', fontsize=12)
+    #plt.ylabel('Conductance (u)', fontsize=12)
     plt.grid(True)
 
     # Save the boxplot figure to a buffer
@@ -272,15 +187,15 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
         transformed_data_groups.append(transformed_data)
 
     # Sigma plot settings
-    ax_sigma.set_title('Sigma Plot of Transformed Data by Groups')
+    #ax_sigma.set_title('Sigma Plot of Transformed Data by Groups')
     #ax_sigma.set_yscale('log')
-    ax_sigma.legend()
+    #ax_sigma.legend()
     ax_sigma.grid(True)
 
     # CDF plot settings
-    ax_cdf.set_title('CDF Plot of Transformed Data by Groups')
+    #ax_cdf.set_title('CDF Plot of Transformed Data by Groups')
     ax_cdf.set_yscale('log')
-    ax_cdf.legend()
+    #ax_cdf.legend()
     ax_cdf.grid(True)
     # Set fixed x-axis limits for CDF plot
     #ax_cdf.set_xlim(0, 200)  # Setting x-axis minimum to 0 and maximum to 200
@@ -383,7 +298,7 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
                 if not line_drawn:
                     print("No suitable points found to draw a horizontal line.")
 
-                ber_results.append((table_name, f'state{start_state} to state{end_state}', ber, ppm_ber, ppm, round(abs(horizontal_line_y_value), 4)))
+                ber_results.append(('random', f'state{start_state} to state{end_state}', ber, ppm_ber, ppm, round(abs(horizontal_line_y_value), 4)))
         
     #plt.ylabel('CDF Value', fontsize=12)
     #plt.title('CDF Curves for BER Calculation')
@@ -405,109 +320,6 @@ def plot_transformed_cdf_2(data, table_names, selected_groups, colors, figsize=(
     return plot_data_sigma, plot_data_cdf, plot_data_interpolated_cdf, ber_results
 
 from db_operations import create_connection, fetch_data, close_connection, create_db_engine, create_db, get_all_databases, connect_to_db, fetch_tables, rename_database, move_tables, copy_tables, copy_all_tables, copy_tables_2, move_tables_2
-def get_group_data_new_multi_database(table_name, selected_groups, sub_array_size):
-    print("Starting get_group_data_new function")
-    conn = create_connection()  # Connect without specifying the database.
-    cursor = conn.cursor()
-    databases = get_all_databases(cursor)
-    print("Connected to the initial database")
-    print("Databases available:", databases)
-
-    for database_name in databases:
-        print(f"Attempting to connect to database: {database_name}")
-        connection = create_connection(database_name)
-        try:
-            db_cursor = connection.cursor()
-            print(f"Connected to database {database_name}. Checking for table {table_name}")
-            db_cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-            if db_cursor.fetchone():
-                print(f"Table {table_name} found in database {database_name}. Executing query.")
-                query = f"SELECT * FROM `{table_name}`"
-                db_cursor.execute(query)
-                data = db_cursor.fetchall()
-                print(f"Query executed successfully. Rows fetched: {len(data)}")
-            else:
-                print(f"Table {table_name} not found in database {database_name}")
-            db_cursor.close()
-        except Exception as e:
-            print(f"Error in database {database_name}: {e}")
-        finally:
-            if connection:
-                print(f"Closing connection to database {database_name}")
-                connection.close()
-
-    cursor.close()
-    conn.close()
-    print("Closed all connections. Function complete.")
-
-    # Convert fetched data to a NumPy array for easier manipulation
-    data_np = np.array(data)  # Assume the scaling factor was removed for clarity
-
-    # Check if the average of data_np is more than 1, then scale data_np by multiplying it with 1e-6
-    if np.mean(data_np) > 1:
-        data_np = data_np * 1e-6
-
-    groups = []
-    groups_stats = []  # List to store statistics for each group
-
-    rows_per_group, cols_per_group = sub_array_size
-    total_rows, total_cols = data_np.shape
-    print("total rows:", total_rows)
-    print("total cols:", total_cols)
-
-    num_row_groups = total_rows // rows_per_group
-    num_col_groups = total_cols // cols_per_group
-    num_of_groups = num_col_groups * num_row_groups
-    partial_rows = total_rows % rows_per_group  # Check if there's a partial row group
-    partial_cols = total_cols % cols_per_group  # Check if there's a partial column group
-    print(f"num_row_groups = {num_row_groups}, num_col_groups = {num_col_groups}, num_of_groups = {num_of_groups}, partial_rows = {partial_rows}, partial_cols = {partial_cols}")
-
-    group_idx = 0  # Initialize group index
-    real_selected_groups = []
-
-    for i in range(num_row_groups + (1 if partial_rows > 0 else 0)):
-        for j in range(num_col_groups + (1 if partial_cols > 0 else 0)):
-            start_row = i * rows_per_group
-            end_row = (i + 1) * rows_per_group if i < num_row_groups else total_rows
-
-            start_col = j * cols_per_group
-            end_col = (j + 1) * cols_per_group if j < num_col_groups else total_cols
-
-            # Check if this group is selected
-            if group_idx in selected_groups:
-                print("group_idx:", group_idx)
-                real_selected_groups.append(group_idx)
-                print(f"Group {group_idx}: Start Row: {start_row}, End Row: {end_row}, Start Col: {start_col}, End Col: {end_col}")
-
-                try:
-                    group = data_np[start_row:end_row, start_col:end_col]
-                    flattened_group = group.flatten()
-
-                    # Filter out negative values
-                    positive_flattened_group = flattened_group[flattened_group >= 0] * 1e6
-
-                    groups.append(positive_flattened_group)
-
-                    # Calculate statistics for the positive values
-                    if len(positive_flattened_group) > 0:  # Ensure there are positive values to analyze
-                        average = round(np.mean(positive_flattened_group), 2)
-                        std_dev = round(np.std(positive_flattened_group), 2)
-                        outlier_percentage = round(np.sum(np.abs(positive_flattened_group - average) > 2.698 * std_dev) / len(positive_flattened_group) * 100, 2)
-                        groups_stats.append((table_name, group_idx, average, std_dev, outlier_percentage))
-                    else:
-                        print(f"Group {group_idx} has no positive values for analysis.")
-                except IndexError as e:
-                    print(f"Error accessing data slice: {e}")
-
-            group_idx += 1  # Increment group index after each inner loop
-        print("i:", i)
-
-    close_connection()
-    
-    #data_np.shape[1] means columns   #data_np.shape[0] means rows
-    return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
-
-
 def get_group_data_new(table_name, selected_groups, database_name, sub_array_size):
     connection = create_connection(database_name)
     query = f"SELECT * FROM `{table_name}`"
@@ -516,28 +328,24 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
     data = cursor.fetchall()
 
     # Convert fetched data to a NumPy array for easier manipulation
-    data_np = np.array(data)  # Assume the scaling factor was removed for clarity
+    data_np = np.array(data)
 
-    data_np[data_np == 0] = 1  #0 is not working, why?
+    data_np[data_np == 0] = 0.001
 
-    # Check if the average of data_np is more than 1, then scale data_np by multiplying it with 1e-6
-    if np.mean(data_np) > 1:
-        data_np = data_np * 1e-6
+    if np.mean(data_np) < 1:
+        data_np = data_np * 1e6
 
     groups = []
     groups_stats = []  # List to store statistics for each group
 
     rows_per_group, cols_per_group = sub_array_size
     total_rows, total_cols = data_np.shape
-    print("total rows:", total_rows)
-    print("total cols:", total_cols)
 
     num_row_groups = total_rows // rows_per_group
     num_col_groups = total_cols // cols_per_group
     num_of_groups = num_col_groups * num_row_groups
     partial_rows = total_rows % rows_per_group  # Check if there's a partial row group
     partial_cols = total_cols % cols_per_group  # Check if there's a partial column group
-    print(f"num_row_groups = {num_row_groups}, num_col_groups = {num_col_groups}, num_of_groups = {num_of_groups}, partial_rows = {partial_rows}, partial_cols = {partial_cols}")
 
     group_idx = 0  # Initialize group index
     real_selected_groups = []
@@ -552,16 +360,14 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
 
             # Check if this group is selected
             if group_idx in selected_groups:
-                print("group_idx:", group_idx)
                 real_selected_groups.append(group_idx)
-                print(f"Group {group_idx}: Start Row: {start_row}, End Row: {end_row}, Start Col: {start_col}, End Col: {end_col}")
 
                 try:
                     group = data_np[start_row:end_row, start_col:end_col]
                     flattened_group = group.flatten()
 
                     # Filter out negative values
-                    positive_flattened_group = flattened_group[flattened_group >= 0] * 1e6
+                    positive_flattened_group = flattened_group[flattened_group >= 0]
 
                     groups.append(positive_flattened_group)
 
@@ -572,282 +378,33 @@ def get_group_data_new(table_name, selected_groups, database_name, sub_array_siz
                         outlier_percentage = round(np.sum(np.abs(positive_flattened_group - average) > 2.698 * std_dev) / len(positive_flattened_group) * 100, 2)
                         groups_stats.append((table_name, group_idx, average, std_dev, outlier_percentage))
                     else:
-                        print(f"Group {group_idx} has no positive values for analysis.")
+                        print(f"State {group_idx} has no positive values for analysis.")
                 except IndexError as e:
                     print(f"Error accessing data slice: {e}")
 
             group_idx += 1  # Increment group index after each inner loop
-        #print("i:", i)
 
     close_connection()
-    
-    #data_np.shape[1] means columns   #data_np.shape[0] means rows
-    return groups, groups_stats, data_np.shape[1], num_of_groups, real_selected_groups
+
+    def transform_list_by_order(lst):
+        sorted_indices = sorted(range(len(lst)), key=lambda x: lst[x])
+        transformation = [0] * len(lst)
+        for rank, index in enumerate(sorted_indices):
+            transformation[index] = rank
+        return transformation
+
+    # Sort the groups, groups_stats, and real_selected_groups based on the average value of the group
+    groups_stats.sort(key=lambda x: x[2])  # Sort by average value
+    sorted_indices = [i[1] for i in groups_stats]  #Get the sorted indices
+    print("sorted_indices:", sorted_indices)
+    sorted_indices = transform_list_by_order(sorted_indices)
+    groups = [groups[i] for i in sorted_indices]
+    #real_selected_groups = [real_selected_groups[i] for i in sorted_indices]
+    #print('real_selected_groups:', real_selected_groups)
+
+    return groups, groups_stats, real_selected_groups
 
 import itertools
-
-''' Minimum Average Overlap: The primary criterion is to find the combination of groups that has the lowest average overlap among the sequential pairs within that combination. This determines which groups are considered best in terms of minimizing the intersection of data points.
-
-    Maximum Average Gap: If there are combinations with the same average overlap, the next criterion is to select the combination that has the highest average gap. This seeks to maximize the average distance between the groups, aiming for a more evenly spaced distribution.
-
-    Smallest Maximum-Minimum Gap Difference: If combinations still tie based on the average overlap and maximum average gap, the next criterion looks at the difference between the maximum gap and minimum gap within each combination. The aim is to select the combination with the smallest difference, which suggests a more uniform distribution of gaps between the groups.
-
-    Smallest Statistical Gap (New Criterion): Finally, if all previous metrics are identical, the smallest statistical gap, based on the difference in the maximum values of consecutive groups, is used as a tiebreaker. This criterion ensures that the selected combination has the smallest difference between the maximum values of consecutive groups, further refining the selection to ensure minimal variation between groups.'''
-def find_min_average_overlap(overlaps, group_stats):
-    min_avg_overlap = float('inf') #positive infinity
-    best_groups = []
-    max_avg_gap = 0  # Initialize the maximum average gap
-    min_smallest_stat_gap = float('inf')  # Initialize the smallest stat gap
-    min_max_gap_minus_min_gap = float('inf')  # Difference between max and min gap in best case
-
-    # Get all unique group indices from the keys of the overlap dictionary
-    group_indices = set([key[0] for key in overlaps.keys()] + [key[1] for key in overlaps.keys()])
-
-    # Generate all combinations of four distinct groups
-    group_combinations = itertools.combinations(sorted(group_indices), 4)
-
-    # Evaluate each combination of four groups
-    for combination in group_combinations:
-        # Get all sequential pairs from the current combination of four groups
-        pairs = [(combination[i], combination[i + 1]) for i in range(len(combination) - 1)]
-        overlap_values = []
-        stat_gaps = []
-        gaps = []
-
-        # Calculate average overlap and stat gaps for the sequential pairs within the combination
-        for pair in pairs:
-            if pair in overlaps:
-                overlap_values.append(overlaps[pair])
-            elif (pair[1], pair[0]) in overlaps:  # Check both directions
-                overlap_values.append(overlaps[(pair[1], pair[0])])
-            # Calculate gaps using group_stats
-            if pair[0] in group_stats and pair[1] in group_stats:
-                stat_gaps.append(group_stats[pair[1]][0] - group_stats[pair[0]][0])  # max of next - max of previous
-                gaps.append(pair[1] - pair[0])
-
-        # Only calculate averages if all pairs have values and stats
-        if len(overlap_values) == len(pairs) and len(stat_gaps) == len(pairs):
-            avg_overlap = sum(overlap_values) / len(overlap_values)
-            avg_gap = sum(gaps) / len(gaps)
-            min_gap = min(gaps)
-            max_gap = max(gaps)
-            smallest_stat_gap = min(stat_gaps)
-            max_gap_minus_min_gap = max_gap - min_gap
-
-            # Update best groups based on new selection criteria
-            #print("min_avg_overlap:", min_avg_overlap)
-            if (avg_overlap < min_avg_overlap or
-                (avg_overlap == min_avg_overlap and (avg_gap > max_avg_gap or
-                (avg_gap == max_avg_gap and (max_gap_minus_min_gap < min_max_gap_minus_min_gap or
-                (max_gap_minus_min_gap == min_max_gap_minus_min_gap and smallest_stat_gap < min_smallest_stat_gap)))))):
-                min_avg_overlap = avg_overlap
-                max_avg_gap = avg_gap
-                min_max_gap_minus_min_gap = max_gap_minus_min_gap
-                min_smallest_stat_gap = smallest_stat_gap
-                best_groups = combination
-
-    return best_groups, min_avg_overlap
-
-def get_group_data_2(table_name, selected_groups, database_name):
-    # Establish a connection to the database
-    connection = create_connection(database_name)
-    query = f"SELECT * FROM `{table_name}`"
-    # Execute the query and fetch data
-    cursor = connection.cursor()
-    cursor.execute(query)
-    data = cursor.fetchall()
-
-    # Convert data to a 2D NumPy array if it's not already
-    if not isinstance(data, np.ndarray):
-        try:
-            data = np.array(data)
-        except Exception as e:
-            print(f"Error converting data to NumPy array: {e}")
-            return [], [], [], {}
-
-    # Check the shape of the data
-    if data.ndim != 2:
-        print("Data is not in the expected 2D format.")
-        return [], [], [], {}
-
-    groups = []
-    groups_stats = []  # List to store statistics for each group
-    data_origin = []   # List to track the origin of each data point
-
-    # Process data for each selected group
-    for i in range(4):
-        for j in range(4):
-            idx = i*4 + j
-            if idx in selected_groups:
-                try:
-                    group = data[i*16:(i+1)*16, j*16:(j+1)*16]
-                    flattened_group = group.flatten() * 1e6
-                    groups.append(flattened_group)
-
-                    # Calculate statistics for each group
-                    average = round(np.mean(flattened_group), 2)
-                    std_dev = round(np.std(flattened_group), 2)
-                    outlier_percentage = round(np.sum(np.abs(flattened_group - average) > 2.698 * std_dev) / len(flattened_group) * 100, 2)
-                    groups_stats.append((table_name, idx, average, std_dev, outlier_percentage))
-
-                    # Track origin for each data point in the group
-                    for row in range(i*16, (i+1)*16):
-                        for col in range(j*16, (j+1)*16):
-                            data_origin.append((table_name, (row, col)))
-                except IndexError as e:
-                    print(f"Error accessing data slice: {e}")
-
-    close_connection()
-
-    return groups, groups_stats, data_origin
-
-def plot_statistics_table(stats, figsize=(15, 10)):
-
-    plt.figure(figsize=figsize)
-    ax_table = plt.gca()
-    ax_table.axis('on')
-    col_labels = ["Cluster", "Average", "Std Dev", "Outlier %"]
-    table = ax_table.table(cellText=stats, colLabels=col_labels, loc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)
-    ax_table.axis('off')
-    plt.tight_layout()
-
-    buf_table = BytesIO()
-    plt.savefig(buf_table, format='png', bbox_inches='tight')
-    buf_table.seek(0)
-    table_data = base64.b64encode(buf_table.getvalue()).decode('utf-8')
-    buf_table.close()
-
-    return table_data
-
-def plot_transformed_cdf_figure(data, colors, figsize=(15, 10)):
-
-    plt.figure(figsize=figsize)
-    for i, group_data in enumerate(data):
-        if len(group_data) < 2:
-            print(f"Skipping Cluster {i+1} due to insufficient data (size: {len(group_data)})")
-            continue
-
-        sorted_data = np.sort(group_data)
-        cdf_values = (np.arange(1, len(sorted_data) + 1) - 0.5) / len(sorted_data)
-        sigma_values = sp_stats.norm.ppf(cdf_values)
-        plt.scatter(sorted_data, sigma_values, color=colors[i], s=5, label=f'Cluster {i+1}')
-
-    plt.xlabel('Transformed Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    plt.title('Transformed CDF of Combined Data by Clusters')
-    plt.ylim(-5, 5)
-    plt.legend(loc='upper left')
-    plt.tight_layout()
-
-    buf_transformed_cdf = BytesIO()
-    plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
-    buf_transformed_cdf.seek(0)
-    transformed_cdf_data = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
-    buf_transformed_cdf.close()
-
-    return transformed_cdf_data
-
-def plot_cdf_figure(data, colors, figsize=(15, 10)):
-
-    plt.figure(figsize=figsize)
-    for i, group_data in enumerate(data):
-        sorted_data = np.sort(group_data)
-        yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
-        plt.plot(sorted_data, yvals, color=colors[i], label=f'Cluster {i+1}')
-
-    plt.xlabel('Combined Data Value')
-    plt.ylabel('CDF')
-    plt.title('CDF of Combined Data by Clusters')
-    plt.legend()
-    plt.tight_layout()
-
-    buf_cdf = BytesIO()
-    plt.savefig(buf_cdf, format='png', bbox_inches='tight')
-    buf_cdf.seek(0)
-    cdf_data = base64.b64encode(buf_cdf.getvalue()).decode('utf-8')
-    buf_cdf.close()
-
-    return cdf_data
-
-def plot_histogram_density(data, colors, figsize=(15, 10)):
-    plt.figure(figsize=figsize)
-
-    for i, cluster in enumerate(data):
-        # Determine the range for each dataset
-        min_value = min(cluster)
-        max_value = max(cluster)
-
-        # Create a list of bin edges with an increment of 1
-        bin_edges = np.arange(min_value, max_value + 2, 1)
-
-        plt.hist(cluster, bins=bin_edges, alpha=0.5, color=colors[i], label=f'Cluster {i+1}', density=True)
-
-    plt.xlabel('Combined Data Value')
-    plt.ylabel('Probability')
-    plt.yscale('log')
-    plt.title('Histogram of Combined Data by Clusters (Probability Density)')
-    plt.legend()
-    plt.tight_layout()
-
-    # Save the histogram figure
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return plot_data
-
-def plot_histogram_figure(data, colors, figsize=(15, 10)):
-    plt.figure(figsize=figsize)
-
-    # Calculate the global min and max across all clusters to define a common bin range
-    global_min = min([min(cluster) for cluster in data])
-    global_max = max([max(cluster) for cluster in data])
-
-    # Create bins with a width of 1, starting from global_min to global_max
-    bins = np.arange(global_min, global_max + 1, 1)  # '+1' to include the rightmost edge
-
-    for i, cluster_data in enumerate(data):
-        # Use the predefined bins for each histogram
-        plt.hist(cluster_data, bins=bins, alpha=0.5, color=colors[i], label=f'Cluster {i+1}')
-
-    plt.xlabel('Combined Data Value')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Combined Data by Clusters with Uniform Bin Width')
-    plt.legend()
-    plt.tight_layout()
-
-    # Save the histogram figure with uniform bin width
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    histogram_data = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return histogram_data
-
-def plot_boxplot_figure(data, stats, figsize=(15, 10)):
-    plt.figure(figsize=figsize)
-    plt.boxplot(data)
-    plt.xticks(range(1, len(stats) + 1), ['Cluster ' + str(i) for i in range(1, len(stats) + 1)])
-    plt.ylabel('Combined Data Value')
-    plt.title('Boxplot of Combined Data by Clusters')
-    plt.grid(True)
-    plt.tight_layout()
-
-    # Save the boxplot figure
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    buf.seek(0)
-    plot_data = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return plot_data
-
 def plot_histogram_with_fitting(data, table_names, colors, figsize=(15, 10)):
     encoded_plots_density = []  # Density plots data
     encoded_plots_counts = []  # Counts plots data
@@ -946,81 +503,6 @@ def get_column_widths(table_data):
     
     return column_widths
 
-def plot_overlap_table(combined_overlaps, table_names, selected_groups, data_matrix_size, num_of_groups):
-    # Unpack data_matrix_size into a and b
-    a, b = data_matrix_size
-
-    # Helper function to create a figure with table
-    def create_table_figure(table_data, column_widths, title):
-        fig, ax = plt.subplots(figsize=(12, 8))  # Adjust the size as needed
-        ax.axis('tight')
-        ax.axis('off')
-        table = ax.table(cellText=table_data, loc='center', colWidths=column_widths, cellLoc='center')
-        table.auto_set_font_size(False)
-        table.set_fontsize(8)
-        table.scale(1, 2)
-        ax.set_title(title)
-        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-
-        buf = BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight')
-        buf.seek(0)
-        encoded_image = base64.b64encode(buf.read()).decode('utf-8')
-        plt.close(fig)
-        return encoded_image
-
-    header = ["State"] + [f"{table_name}" for table_name in table_names] + ["Average"]
-    table_data1, table_data2 = [header], [header]  # Initialize table data lists with headers
-
-    # Calculate the data for the tables
-    num_group_pairs = len(selected_groups) - 1
-    for i in range(num_group_pairs):
-        row1 = [f"State {selected_groups[i]} & State {selected_groups[i+1]}"]
-        row2 = [f"State {selected_groups[i]} & State {selected_groups[i+1]}"]
-        valid_counts1 = []
-        valid_counts2 = []
-
-        for j, overlaps in enumerate(combined_overlaps):
-            if i < len(overlaps):
-                overlap_count1 = overlaps[i][2]
-                overlap_count2 = overlaps[i][3]  # Assuming this index exists and is valid
-                row1.append(f"{overlap_count1}")
-                row2.append(f"{overlap_count2:.4f}%")
-                valid_counts1.append(overlap_count1)
-                valid_counts2.append(overlap_count2)
-            else:
-                row1.append("-")
-                row2.append("-")
-
-        average_count1 = sum(valid_counts1) / len(valid_counts1) if valid_counts1 else 0
-        average_count2 = sum(valid_counts2) / len(valid_counts2) if valid_counts2 else 0
-        row1.append(f"{average_count1:.4f}")
-        row2.append(f"{average_count2:.4f}%")
-        table_data1.append(row1)
-        table_data2.append(row2)
-
-    # Calculate averages for each column and add a final "Average" row
-    averages_row1 = ["Average"]
-    averages_row2 = ["Average"]
-    for col in range(1, len(header)):  # Skip the first column "State"
-        column_values1 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data1[1:] if row[col] != "-"]
-        column_values2 = [float(row[col].replace('%', '')) if '%' in row[col] else float(row[col]) for row in table_data2[1:] if row[col] != "-"]
-        averages_row1.append(f"{sum(column_values1) / len(column_values1) if column_values1 else 0:.4f}")
-        averages_row2.append(f"{sum(column_values2) / len(column_values2) if column_values2 else 0:.4f}%")
-
-    table_data1.append(averages_row1)
-    table_data2.append(averages_row2)
-
-    # Assuming get_column_widths is defined elsewhere and calculates column widths
-    column_widths1 = get_column_widths(table_data1)
-    column_widths2 = get_column_widths(table_data2)
-
-    # Create tables and encode as images
-    encoded_image1 = create_table_figure(table_data1, column_widths1, "Overlap count")
-    encoded_image2 = create_table_figure(table_data2, column_widths2, "Overlap percentage")
-
-    return encoded_image1, encoded_image2
-
 def plot_average_values_table(avg_values, table_names, selected_groups, figsize=(15, 10)):
     fig, ax = plt.subplots(figsize=figsize)
     #ax.axis('tight')
@@ -1064,7 +546,7 @@ def plot_average_values_table(avg_values, table_names, selected_groups, figsize=
     table.scale(1, 2)
 
     plt.title('Average table')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -1149,7 +631,7 @@ def plot_std_values_table(std_values, table_names, selected_groups, figsize=(15,
     table.scale(1, 2)
     
     plt.title('Sigma table')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -1161,11 +643,11 @@ def plot_std_values_table(std_values, table_names, selected_groups, figsize=(15,
 
 def plot_colormap(data, title, figsize=(30, 15)):
     # Set minimum value to 0 and maximum value to the largest value in the data scaled by 1e6
-    g_range = [0, np.max(data * 1e6)]
+    g_range = [0, np.max(data)]
     
     fig, ax = plt.subplots(figsize=figsize)
     # Apply the g_range for color scaling
-    cax = ax.imshow(data * 1e6, cmap=plt.cm.viridis, origin="lower", vmin=g_range[0], vmax=g_range[1])
+    cax = ax.imshow(data, cmap=plt.cm.viridis, origin="lower", vmin=g_range[0], vmax=g_range[1])
 
     fig.colorbar(cax)
     
@@ -1191,11 +673,7 @@ def get_full_table_data(table_name, database_name):
     # Assuming the data is structured as a list of tuples, where each tuple represents a row in the table
     data_matrix = np.array(data)
 
-    data_matrix[data_matrix == 0] = 1   #0 is not working, why?
-
-    # Check if the average of data_matrix is more than 1, then scale data_matrix by multiplying it with 1e-6
-    if np.mean(data_matrix) > 1:
-        data_matrix = data_matrix * 1e-6
+    data_matrix[data_matrix == 0] = 0.001   #0 is not working, why?
     
     # Get the size (shape) of the matrix
     data_matrix_size = data_matrix.shape
@@ -1281,7 +759,7 @@ def plot_curve_overlap_table(overlap_ppm_by_table, selected_groups_by_table, fig
     table.scale(1, 2)
     ax.set_title('Combined Overlap for All Tables')
 
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
     plt.close(fig)
@@ -1291,89 +769,6 @@ def plot_curve_overlap_table(overlap_ppm_by_table, selected_groups_by_table, fig
 
     print("Plot generated.")
     return encoded_image
-
-def plot_distributions(fit_params):
-    plt.figure(figsize=(12, 8))
-
-    for idx, info in fit_params.items():
-        dist_name = info['distribution']
-        params = info['parameters']
-        dist = getattr(sp_stats, dist_name)
-        
-        # Define the lower and upper bounds using the PPF to ensure tails are included
-        # Lower bound set to the PPF at a low probability (0.001 or lower)
-        # Upper bound set to the PPF at a high probability (0.999 or higher)
-        low_prob = 0.0000001 if dist_name == 'expon' else 0.0000001
-        high_prob = 0.999999 if dist_name == 'expon' else 0.9999999
-        
-        lower_bound = dist.ppf(low_prob, *params[:-2], loc=params[-2], scale=params[-1])
-        upper_bound = dist.ppf(high_prob, *params[:-2], loc=params[-2], scale=params[-1])
-        
-        x = np.linspace(lower_bound, upper_bound, 1000)
-        pdf = dist.pdf(x, *params)
-        plt.plot(x, pdf, label=f'{dist_name.capitalize()} Dist {idx}')
-
-    plt.title('PDFs of Various Distributions')
-    plt.xlabel('Value')
-    plt.ylabel('Density')
-    plt.legend()
-    
-    # Save plot to a bytes buffer
-    buf = BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    
-    # Encode plot to base64 string and return
-    encoded = base64.b64encode(buf.read()).decode('utf-8')
-    buf.close()
-    plt.close()  # Clear the current figure to free memory
-    return encoded
-
-'''calculate not only the number of elements in group (n+1) that are smaller than the maximum of group (n), but also the number of elements in group (n) that are larger than the minimum of group (n+1). Then, for each pair of groups, you will choose the smaller count from these two calculations to determine the overlap.
-'''
-def calculate_overlap(group_data, selected_groups, sub_array_size):
-    c, d = sub_array_size
-    overlaps = []
-    group_stats = {}  # Dictionary to store max and min of each group
-
-    # Create a mapping of selected group indices to their corresponding data in groups
-    group_mapping = {idx: data for idx, data in zip(selected_groups, group_data)}
-
-    for i in range(len(selected_groups) - 1):
-        group1 = group_mapping[selected_groups[i]]
-        group2 = group_mapping[selected_groups[i+1]]
-
-        # Calculate max and min for each group and store it
-        max_value_group1 = np.max(group1)
-        min_value_group1 = np.min(group1)
-        max_value_group2 = np.max(group2)
-        min_value_group2 = np.min(group2)
-
-        group_stats[selected_groups[i]] = (max_value_group1, min_value_group1)
-        if i == len(selected_groups) - 2:  # Ensure the last group's stats are also added
-            group_stats[selected_groups[i+1]] = (max_value_group2, min_value_group2)
-
-        # Calculate overlaps according to new definitions
-        overlapping_values1 = group2[group2 < max_value_group1]
-        overlapping_values2 = group1[group1 > min_value_group2]
-
-        overlap_count1 = len(overlapping_values1)
-        overlap_count2 = len(overlapping_values2)
-        chosen_overlap_count = min(overlap_count1, overlap_count2)
-        chosen_overlap_percentage = chosen_overlap_count / (c * d) * 100
-
-        overlaps.append((selected_groups[i], selected_groups[i+1], chosen_overlap_count, chosen_overlap_percentage))
-        
-        '''print(f"Max of group {selected_groups[i]}:", max_value_group1)  
-        print(f"Min of group {selected_groups[i]}:", min_value_group1)
-        print(f"Max of group {selected_groups[i+1]}:", max_value_group2)
-        print(f"Min of group {selected_groups[i+1]}:", min_value_group2)
-        print("group stats:", group_stats) #max and min of each group
-        print(f"Overlap count (smaller values in (n+1)): {overlap_count1}")
-        print(f"Overlap count (larger values in (n)): {overlap_count2}")
-        print(f"Chosen overlap count: {chosen_overlap_count}")'''
-        
-    return overlaps, group_stats
 
 def plot_overlap_statistics(overlap_ppm_by_table, table_names):
     """
@@ -1421,95 +816,7 @@ def plot_overlap_statistics(overlap_ppm_by_table, table_names):
     buf.close()
 
     return encoded_image
-
-def calculate_all_pairs_overlap(groups, sub_array_size):
-    """Calculate overlaps for all pairs of groups with both conditions."""
-    c, d = sub_array_size
-    overlaps = {}
-    group_stats = {}  # Dictionary to store max and min of each group
-    group_indices = list(groups.keys())
-
-    # Calculate and store max and min for each group
-    for idx in group_indices:
-        group = groups[idx]
-        max_value = np.max(group)
-        min_value = np.min(group)
-        group_stats[idx] = (max_value, min_value)
-
-    # Calculate overlaps for each pair of groups
-    for i in range(len(group_indices)):
-        for j in range(i + 1, len(group_indices)):
-            group1_idx = group_indices[i]
-            group2_idx = group_indices[j]
-            group1 = groups[group1_idx]
-            group2 = groups[group2_idx]
-
-            max_value_group1 = group_stats[group1_idx][0]
-            min_value_group2 = group_stats[group2_idx][1]
-
-            # Find elements in group2 less than max of group1 and elements in group1 greater than min of group2
-            overlapping_values1 = group2[group2 < max_value_group1]
-            overlapping_values2 = group1[group1 > min_value_group2]
-
-            overlap_count1 = len(overlapping_values1)
-            overlap_count2 = len(overlapping_values2)
-
-            # Choose the minimum overlap count to determine the overlap percentage
-            chosen_overlap_count = min(overlap_count1, overlap_count2)
-            chosen_overlap_percentage = chosen_overlap_count / (c * d) * 100
-
-            # Store the chosen overlap percentage
-            overlaps[(group1_idx, group2_idx)] = chosen_overlap_percentage
-
-    #return overlaps, group_stats
-    return overlaps
-
-def generate_overlap_data_for_all_combinations(groups, selected_groups, sub_array_size):
-    """Generate overlaps for all combinations of four selected groups."""
-    group_data = {idx: groups[idx] for idx in selected_groups}
-    all_pair_overlaps = calculate_all_pairs_overlap(group_data, sub_array_size)
-
-    return all_pair_overlaps
-
-def plot_min_4level_table(best_groups_append, min_overlap_append, table_names, figsize=(12, 8)):
-    print("Generating best group overlap plot...")
-    encoded_images = []
-
-    # Debug: Check input data
-    print("Best groups by table:", best_groups_append)
-    print("Minimum overlaps by table:", min_overlap_append)
-
-    # Prepare the data for the table
-    header = ["Table Name", "Best States", "Average Overlap"]
-    table_data = [header]
-
-    # Data for individual tables
-    for name, groups, overlap in zip(table_names, best_groups_append, min_overlap_append):
-        table_data.append([name, ', '.join(map(str, groups)), f"{overlap:.4f}%"])
-
-    fig, ax = plt.subplots(figsize=figsize)
-    ax.axis('tight')
-    ax.axis('off')
     
-    # Create and adjust the table
-    table = ax.table(cellText=table_data, loc='center', cellLoc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.5)  # Adjust table size
-
-    ax.set_title('Best 4 States with Minimum Average Overlap')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-
-    # Save to buffer
-    buf = BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    buf.seek(0)
-    encoded_image = base64.b64encode(buf.read()).decode('utf-8')
-    buf.close()
-
-    return encoded_image
-
 def plot_ber_tables(ber_results, table_names):
     sigma_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
     ppm_headers = ["State/Transition"] + [name for name in table_names] + ["Row Avg"]
@@ -1541,7 +848,7 @@ def plot_ber_tables(ber_results, table_names):
         sigma_row.append(f"{np.mean([float(val) for val in sigma_row[1:] if val != key]):.4f}")
         ppm_row.append(f"{np.mean([float(val) for val in ppm_row[1:] if val != key]):.0f}")
         uS_row.append(f"{np.mean([float(val) for val in uS_row[1:] if val != key]):.0f}")
-        additional_row.append(str(np.mean([float(val) for val in additional_row[1:] if isinstance(val, (int, float))])))
+        additional_row.append(f"{np.mean([float(val) for val in additional_row[1:] if val != key]):.4f}")
         sigma_data.append(sigma_row)
         ppm_data.append(ppm_row)
         uS_data.append(uS_row)
@@ -1555,11 +862,11 @@ def plot_ber_tables(ber_results, table_names):
         sigma_col = [float(row[col]) for row in sigma_data[1:] if row[col] != "Col Avg"]
         ppm_col = [float(row[col]) for row in ppm_data[1:] if row[col] != "Col Avg"]
         uS_col = [float(row[col]) for row in uS_data[1:] if row[col] != "Col Avg"]
-        additional_col = [float(row[col]) for row in additional_data[1:] if isinstance(row[col], (int, float)) and row[col] != "Col Avg"]
+        additional_col = [float(row[col]) for row in additional_data[1:] if row[col] != "Col Avg"]
         sigma_col_avg.append(f"{np.mean(sigma_col):.4f}")
         ppm_col_avg.append(f"{np.mean(ppm_col):.0f}")
         uS_col_avg.append(f"{np.mean(uS_col):.0f}")
-        additional_col_avg.append(f"{np.mean(additional_col):.2f}")
+        additional_col_avg.append(f"{np.mean(additional_col):.4f}")
     sigma_data.append(sigma_col_avg)
     ppm_data.append(ppm_col_avg)
     uS_data.append(uS_col_avg)
@@ -1572,7 +879,7 @@ def plot_ber_tables(ber_results, table_names):
     for data, title in [(sigma_data, "y Values at intersection"), (ppm_data, "BER PPM Values at intersection"), (uS_data, "BER PPM Values at windows = 2"), (additional_data, "y Values at windows = 2")]:
         fig, ax = plt.subplots(figsize=(15, 10))
         ax.axis('off')
-        plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+        #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
         column_widths = get_column_widths(data)
         table = ax.table(cellText=data, loc='center', colWidths=column_widths, cellLoc='center')
         table.set_fontsize(12)
@@ -1692,7 +999,7 @@ def plot_combined_window_analysis_table(aggregated_window_values, figsize=(15, 1
     table.set_fontsize(12)
     table.scale(1, 2)
     ax.set_title('Window table 99% to 1%')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -1787,7 +1094,7 @@ def plot_combined_window_analysis_table_2(aggregated_window_values, figsize=(12,
     table.set_fontsize(12)
     table.scale(1, 2)
     #ax.set_title('Window table 99% to 1%')
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')

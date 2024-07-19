@@ -156,7 +156,7 @@ def plot_combined_window_analysis_table(aggregated_window_values, selected_group
     # Initialize an empty list to maintain the order of state pairs based on their appearance
     state_pairs_order = []
     for _, pair in aggregated_window_values.keys():
-        state_pair = f"Group {pair[0]} & Group {pair[1]}"
+        state_pair = f"State {pair[0]} & State {pair[1]}"
         if state_pair not in state_pairs_order:
             state_pairs_order.append(state_pair)
 
@@ -165,7 +165,7 @@ def plot_combined_window_analysis_table(aggregated_window_values, selected_group
 
     # Populate the combined table data with actual values
     for (table_name, pair), value in aggregated_window_values.items():
-        state_pair = f"Group {pair[0]} & Group {pair[1]}"
+        state_pair = f"State {pair[0]} & State {pair[1]}"
         table_index = tables_order.index(table_name)
         combined_table_data[state_pair][table_index] = value
     
@@ -188,7 +188,7 @@ def plot_combined_window_analysis_table(aggregated_window_values, selected_group
     else:
         ax.text(0.5, 0.5, "No window analysis data available", va='center', ha='center')
 
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+    #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
 
     buf = BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
