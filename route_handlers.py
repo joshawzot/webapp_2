@@ -41,133 +41,25 @@ import csv
 import io
 from PIL import Image
 
-from db_monitor import *
-from scheduler import scheduler  # Import the scheduler instance
 # Custom module imports
-#from generate_plot_vertical_xn import generate_plot_vertical_xn
-#from generate_plot_horizontal_boxplotsigma_xn import generate_plot_horizontal_boxplotsigma_xn
-#from generate_plot_horizontal_boxplotsigma_xnxm import generate_plot_horizontal_boxplotsigma_xnxm
-#from generate_plot_horizontal_sigma_xnxm import generate_plot_horizontal_sigma_xnxm
-#from generate_plot_forming_voltage_map import generate_plot_forming_voltage_map
-#from generate_plot_percentage_bars import generate_plot_percentage_bars
-#from generate_plot_ttc import generate_plot_ttc
 from generate_plot_endurance import generate_plot_endurance
-#from generate_plot_checkerboard import generate_plot_checkerboard
 from generate_plot import generate_plot
 from generate_plot_normal_combined import generate_plot_normal_combined
 from generate_plot_combined import generate_plot_combined
 from generate_plot_separate import generate_plot_separate
-#from generate_plot_64x64 import generate_plot_64x64
-#from generate_plot_VCR import generate_plot_VCR
-#from generate_plot_TCR import generate_plot_TCR
-#from generate_plot_TCR_separate import generate_plot_TCR_separate
-#from generate_plot_cycling import generate_plot_cycling
 
 '''from flask_caching import Cache
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})'''
 
-#backup to server side
-'''
-@app.route('/backup', methods=['POST'])
-def backup():
-    data = request.get_json()
-    local_backup_dir = data.get('backupDirectory')
-    print("local_backup_dir:", local_backup_dir)
-    dbnames = data.get('databaseNames')
-    print("dbnames:", dbnames)
-
-    if not local_backup_dir or not dbnames:
-        return jsonify({"error": "No backup directory or databases provided"}), 400
-
-    # Ensure the backup directory exists
-    print("os.path.exists(local_backup_dir):", os.path.exists(local_backup_dir))
-    if not os.path.exists(local_backup_dir):
-        try:
-            os.makedirs(local_backup_dir)
-        except OSError as e:
-            print("fucked")
-            return jsonify({"error": f"Failed to create backup directory: {e}"}), 500
-
-    responses = []
-    for dbname in dbnames:
-        backup_file = f"{dbname}_{int(time.time())}.sql"
-        backup_path = os.path.join(local_backup_dir, backup_file)
-
-        command = f"mysqldump -u{DB_CONFIG['DB_USER']} -p'{DB_CONFIG['MYSQL_PASSWORD_RAW']}' {dbname} > {backup_path}"
-        try:
-            result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
-            responses.append({"database": dbname, "message": f"Backup created successfully at {backup_path}"})
-        except subprocess.CalledProcessError as e:
-            error_message = e.stderr
-            responses.append({"database": dbname, "error": f"Failed to create backup: {error_message}"})
-
-    return jsonify(responses), 200
-'''
-
-#back up to client side
-@app.route('/backup', methods=['POST'])
-def backup():
-    data = request.get_json()
-    dbnames = data.get('databaseNames')
-
-    if not dbnames:
-        return jsonify({"error": "No databases provided"}), 400
-
-    local_backup_dir = '/home/ubuntu/backup'
-    os.makedirs(local_backup_dir, exist_ok=True)
-
-    responses = []
-    zip_filename = f"backups_{int(time.time())}.zip"
-    zip_path = os.path.join(local_backup_dir, zip_filename)
-
-    with zipfile.ZipFile(zip_path, 'w') as zipf:
-        for dbname in dbnames:
-            backup_file = f"{dbname}_{int(time.time())}.sql"
-            backup_path = os.path.join(local_backup_dir, backup_file)
-
-            command = f"mysqldump -h {DB_CONFIG['DB_HOST']} -P {DB_CONFIG['RDS_PORT']} -u{DB_CONFIG['DB_USER']} -p'{DB_CONFIG['MYSQL_PASSWORD_RAW']}' {dbname} > {backup_path}"
-            try:
-                subprocess.run(command, shell=True, check=True)
-                zipf.write(backup_path, arcname=backup_file)
-                os.remove(backup_path)  # Remove the SQL file after adding to zip
-                responses.append({"database": dbname, "message": f"Backup created successfully at {backup_path}"})
-            except subprocess.CalledProcessError as e:
-                error_message = e.stderr
-                responses.append({"database": dbname, "error": f"Failed to create backup: {error_message}"})
-
-    # After creating zip file, send it to the client
-    print("local_backup_dir:", local_backup_dir)
-    print("zip_filename:", zip_filename)
-    return send_from_directory(local_backup_dir, zip_filename, as_attachment=True)
-
-@app.route('/all-databases')
-def all_databases():
+@app.route('/create-db')
+def create_db_page():
     conn = create_connection()
     cursor = conn.cursor()
     databases = get_all_databases(cursor)  # Fetch all database names
     cursor.close()
     conn.close()
 
-    if ENG:
-        return render_template('list_databases_eng.html', databases=databases)
-    else:
-        return render_template('list_databases.html', databases=databases)
-
-@app.route('/delete-database/<name>', methods=['DELETE'])
-def delete_database(name):
-    conn = connect_to_db(DB_CONFIG['DB_USER'], DB_CONFIG['MYSQL_PASSWORD_RAW'], DB_CONFIG['DB_HOST'], DB_CONFIG['RDS_PORT'])
-    if conn is None:
-        return jsonify({"error": "Failed to connect to the database"}), 500
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute(f"DROP DATABASE IF EXISTS {name}")
-        conn.commit()
-        return jsonify({"message": f"Database {name} deleted successfully."}), 200
-    except mysql.connector.Error as err:
-        return jsonify({"error": f"Failed to delete database: {err}"}), 500
-    finally:
-        conn.close()
+    return render_template('create_db_page.html')
 
 @app.route('/save-txt-content/<database>/<table_name>', methods=['POST'])
 def save_txt_content(database, table_name):
@@ -183,89 +75,13 @@ def save_txt_content(database, table_name):
     except mysql.connector.Error as err:
         return str(err), 400
 
-last_pptx_hash = ''  # Just a starting value; should be managed appropriately.
-@app.route('/get-pptx-as-pdf', methods=['GET'])
-def get_pptx_as_pdf():
-    global last_pptx_hash
+@app.route('/')  # Defines a route for the root URL
+def home():
+    print("home")
+    return redirect(url_for('home_page'))
 
-    pptx_path = os.path.join('static', 'database.pptx')
-    pdf_path = os.path.join('static', 'database.pdf')
-
-    # Check if PPTX has changed
-    with open(pptx_path, 'rb') as f:
-        current_hash = hashlib.md5(f.read()).hexdigest()
-
-    if current_hash != last_pptx_hash:
-        # Convert PPTX to PDF using LibreOffice
-        cmd = f'libreoffice --headless --convert-to pdf --outdir {os.path.dirname(pdf_path)} {pptx_path}'
-        os.system(cmd)
-
-        # Update the hash value
-        last_pptx_hash = current_hash
-
-    return send_from_directory('static', 'database.pdf')
-
-'''
-# AWS S3 Configuration
-s3_client = boto3.client('s3', aws_access_key_id='AKIAU62NNZW42NLXZZ6B', aws_secret_access_key='9ZvgGiZi8KK4Glb7S/4CdFx4sVuFrfK6ySY82K9YY')
-bucket_name = 'webappcdn'
-
-# Global variable to track the last hash
-last_pptx_hash = ''
-@app.route('/get-pptx-as-pdf', methods=['GET'])
-def get_pptx_as_pdf(): hash
-    conn = sqlite3.connect('hash_store.db')
-    c = conn.cursor()
-    c.execute('SELECT hash FROM last_hash WHERE id = 1')
-    last_pptx_hash, = c.fetchone()
-
-    if current_hash != last_pptx_hash:
-        # Process to convert PPTX to PDF (e.g., using LibreOffice)
-        # This is a placeholder. Implement the conversion logic
-        with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as tmp_pptx:
-            tmp_pptx.write(pptx_response.content)
-            tmp_pptx_path = tmp_pptx.name
-        pdf_path = tmp_pptx_path.replace('.pptx', '.pdf')
-        cmd = f'libreoffice --headless --convert-to pdf --outdir {os.path.dirname(pdf_path)} {tmp_pptx_path}'
-        os.system(cmd)
-
-        # Upload the PDF back to S3
-        with open(pdf_path, 'rb') as pdf_file:
-            s3_client.put_object(Bucket=bucket_name, Key='database.pdf', Body=pdf_file)
-
-        # Cleanup temporary files
-        os.remove(tmp_pptx_path)
-        os.remove(pdf_path)
-
-        # Update the hash value in the database
-        c.execute('UPDATE last_hash SET hash = ? WHERE id = 1', (current_hash,))
-        conn.commit()
-
-    conn.close()
-
-    # Fetch and return the updated PDF from S3
-    pdf_url = "https://d2lsypbr1lit3e.cloudfront.net/database.pdf"
-    pdf_response = requests.get(pdf_url)
-    return send_file(io.BytesIO(pdf_response.content), attachment_filename='database.pdf')
-'''
-
-#@app.route('/')  # Defines a route for the root URL
-#def home():
-    #print("home")
-    #return redirect(url_for('home_page'))
-    #return redirect(url_for('dynamodb_home'))
-
-@app.route('/dynamodb-home', methods=['GET'])  
-def dynamodb_home():
-    return render_template('dynamodb_home.html')
-
-@app.route('/home-page', methods=['GET'])   # also Defines a route for the root URL
+@app.route('/home-page', methods=['GET'])
 def home_page():
-    #print("Home page route is set up.")
-    #if CHECK_DB:
-        #if not scheduler.get_job('Schema Monitor'):
-            #print("scheduler")
-            #scheduler.add_job(id='Schema Monitor', func=check_for_new_schemas, trigger='interval', minutes=1)
     """Get a list of databases available."""
     try:
         conn = create_connection()
@@ -274,78 +90,25 @@ def home_page():
         cursor.close()
         conn.close()
 
-        # Creating a dictionary to map database names to image URLs
-        '''image_urls = {
-            "vertical_xn": url_for('static', filename='example_plot_vertical_xn.png'),
-            "horizontal_boxplotsigma_xn": url_for('static', filename='example_plot_horizontal_boxplotsigma_xn.png'),
-            "horizontal_sigma_xnxm": url_for('static', filename='example_plot_horizontal_sigma_xnxm.png'),
-            "forming_voltage_map": url_for('static', filename='example_plot_forming_voltage_map.png'),
-            "percentage_bars": url_for('static', filename='example_plot_percentage_bars.png'),
-            "ttc": url_for('static', filename='example_plot_ttc.png'),
-            "endurance": url_for('static', filename='example_plot_endurance.png'),
-            "horizontal_boxplotsigma_xnxm": url_for('static', filename='example_plot_horizontal_boxplotsigma_xnxm.png'),
-            "checkerboard": url_for('static', filename='example_plot_checkerboard.png')
-        }
-        #powerpoint_url = url_for('static', filename='database.pdf')
-        powerpoint_url = url_for('static', filename='database.pptx')'''
-
-        '''cloudfront_base_url = "https://d2lsypbr1lit3e.cloudfront.net/"
-        image_urls = {
-            "vertical_xn": cloudfront_base_url + "static/example_plot_vertical_xn.png",
-            "horizontal_boxplotsigma_xn": cloudfront_base_url + "static/example_plot_horizontal_boxplotsigma_xn.png",
-            "horizontal_sigma_xnxm": cloudfront_base_url + "static/example_plot_horizontal_sigma_xnxm.png",
-            "forming_voltage_map": cloudfront_base_url + "static/example_plot_forming_voltage_map.png",
-            "percentage_bars": cloudfront_base_url + "static/example_plot_percentage_bars.png",
-            "ttc": cloudfront_base_url + "static/example_plot_ttc.png",
-            "endurance": cloudfront_base_url + "static/example_plot_endurance.png",
-            "endurance_multi": cloudfront_base_url + "static/example_plot_endurance.png",
-            "horizontal_boxplotsigma_xnxm": cloudfront_base_url + "static/example_plot_horizontal_boxplotsigma_xnxm.png",
-            "checkerboard": cloudfront_base_url + "static/example_plot_checkerboard.png"
-        }'''
-
-        #powerpoint_url = "https://d2lsypbr1lit3e.cloudfront.net/database.pptx"
-
-        #return render_template('home_page.html', databases=databases, image_urls=image_urls, powerpoint_url=powerpoint_url)
-        #return render_template('home_page.html', databases=databases, powerpoint_url=powerpoint_url)
-
         return render_template('home_page.html', databases=databases)
 
     except mysql.connector.Error as err:
         return str(err)
 
-@app.route('/data-analysis', methods=['POST', 'GET'])
-def data_analysis():
+@app.route('/list-tables', methods=['POST', 'GET'])
+def list_tables():
     if request.method == 'POST':
-        # Only attempt to access form data if the request is POST
         session['database'] = request.form.get('database')
-        if not session['database']:
-            # Properly handle the case where 'database' key is missing in form data
-            abort(400, description="Missing required form data: database")
 
-    # Check if 'database' is stored in session, if not, handle it or redirect
     database = session.get('database')
-    if not database:
-        # Handle the absence of database information, e.g., redirect to a form or show an error
-        return redirect(url_for('some_form_route'))  # Redirect to a page to get the database input
+
+    tables = fetch_tables(database)  # Retrieve table data from the database
+    table_names = ','.join(table['table_name'] for table in tables)
+    print("table_names:", table_names)
 
     plot_function = "None"  # This could also be dynamically set based on POST or other conditions
 
-    try:
-        tables = fetch_tables(database)  # Retrieve table data from the database
-        table_names = ','.join(table['table_name'] for table in tables)
-        print("table_names:", table_names)
-
-        return render_template('list_tables.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
-
-    except mysql.connector.Error as err:
-        # Log and handle any database errors gracefully
-        print("MySQL Error: ", err)
-        return str(err), 500
-
-    except Exception as e:
-        # General error handling
-        print("Error: ", e)
-        return str(e), 500
+    return render_template('list_tables.html', tables=tables, table_names=table_names, database=database, plot_function=plot_function)
 
 @app.route('/view-table/<database>/<table_name>', methods=['GET'])
 def view_table(database, table_name):
@@ -374,106 +137,12 @@ def view_table(database, table_name):
 
 # Define a dictionary to map database names to functions
 generate_plot_functions = {
-    #"generate_plot_checkerboard": generate_plot_checkerboard,
     "generate_plot_endurance": generate_plot_endurance,
-    #"generate_plot_ttc": generate_plot_ttc,
-    #"generate_plot_percentage_bars": generate_plot_percentage_bars,
-    #"generate_plot_vertical_xn": generate_plot_vertical_xn,
-    #"generate_plot_horizontal_boxplotsigma_xn": generate_plot_horizontal_boxplotsigma_xn,
-    #"generate_plot_horizontal_boxplotsigma_xnxm": generate_plot_horizontal_boxplotsigma_xnxm,
-    #"generate_plot_horizontal_sigma_xnxm": generate_plot_horizontal_sigma_xnxm,
-    #"generate_plot_forming_voltage_map": generate_plot_forming_voltage_map,
     "generate_plot": generate_plot,
     "generate_plot_normal_combined": generate_plot_normal_combined,
     "generate_plot_combined": generate_plot_combined,
     "generate_plot_separate": generate_plot_separate,
-    #"generate_plot_64x64": generate_plot_64x64,
-    #"generate_plot_TCR": generate_plot_TCR,
-    #"generate_plot_VCR": generate_plot_VCR,
-    #"generate_plot_TCR_separate": generate_plot_TCR_separate,
-    #"generate_plot_cycling": generate_plot_cycling,
 }
-
-@app.route('/render-plot-multi-database/<unique_id>')
-def render_plot_multi_database(unique_id):
-    print("AAA")
-    # Attempt to fetch cached plot data using unique_id as the cache key
-    cache_key = f"plot_data_{unique_id}"
-    cached_plot_data = cache.get(cache_key)
-
-    if cached_plot_data:
-        # If cached data is found, use it to render the plot directly
-        return render_template('plot.html', plot_data=cached_plot_data)
-
-    # If no cache is found, retrieve the stored data from Redis
-    stored_data_json = redis_client.get(unique_id)
-    if not stored_data_json:
-        return "Error: Invalid ID or Data Expired", 404
-
-    stored_data = json.loads(stored_data_json)
-
-    database_tables = stored_data["database_tables"]
-    plot_function = stored_data["plot_function"]
-    form_data = stored_data["form_data"]
-
-    # Assuming generate_plot_functions is a dictionary mapping plot function names to their implementations
-    generate_plot_function = generate_plot_functions.get(plot_function)
-    if generate_plot_function is None:
-        return "Error: Invalid plot function selection", 400
-
-    try:
-        # Generate a combined plot for all specified tables
-        all_table_names = [table_name for _, table_name in database_tables]
-        plot_data = generate_plot_function(all_table_names, form_data=form_data)
-        
-        if not isinstance(plot_data, list):
-            plot_data = [plot_data]
-
-        # Cache the generated plot data for future requests
-        cache.set(cache_key, plot_data, timeout=None)
-
-        return render_template('plot.html', plot_data=plot_data)
-    except Exception as e:
-        return f"Error: {e}", 500
-
-'''@app.route('/render-plot/<unique_id>')
-def render_plot(unique_id):
-    # Attempt to fetch cached plot data using unique_id as the cache key
-    cache_key = f"plot_data_{unique_id}"
-    cached_plot_data = cache.get(cache_key)
-
-    if cached_plot_data:
-        # If cached data is found, use it to render the plot directly
-        return render_template('plot.html', plot_data=cached_plot_data)
-
-    # If no cache is found, retrieve the stored data from Redis
-    stored_data_json = redis_client.get(unique_id)
-    if not stored_data_json:
-        return "Error: Invalid ID or Data Expired", 404
-    
-    stored_data = json.loads(stored_data_json)
-
-    database = stored_data["database"]
-    table_name = stored_data["table_name"]
-    plot_function = stored_data["plot_function"]
-    form_data = stored_data["form_data"]
-
-    # Assuming generate_plot_functions is a dictionary mapping plot function names to their implementations
-    generate_plot_function = generate_plot_functions.get(plot_function)
-    if generate_plot_function is None:
-        return "Error: Invalid plot function selection", 400
-
-    try:
-        plot_data = generate_plot_function(table_name.split(','), database, form_data=form_data)
-        if not isinstance(plot_data, list):
-            plot_data = [plot_data]
-
-        # Cache the generated plot data for future requests
-        cache.set(cache_key, plot_data, timeout=None)
-
-        return render_template('plot.html', plot_data=plot_data)
-    except Exception as e:
-        return f"Error: {e}", 500'''
 
 @app.route('/render-plot/<unique_id>')
 def render_plot(unique_id):
@@ -689,146 +358,7 @@ def view_plot(database, table_name, plot_function):
         table_names = table_name.split(',')
         print(table_names)
         print("GET:::::::::::::::::::::::::::::::::")
-        return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
-
-'''
-@app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
-def view_plot(database, table_name, plot_function):
-    print("view_plot")
-    if request.method == "POST":
-        print("POST:::::::::::::::::::::::::::::::::")
-        # Check if the user has made a plot function choice
-        plot_function_choice = request.form.get('plot_choice')
-        if plot_function_choice:
-            plot_function = plot_function_choice
-            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
-                return render_template(f'input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)             
-            else:
-                return jsonify({"error": "choice not selected"}), 400
-
-        # Ensure plot_function has a value before proceeding
-        if plot_function:
-            print(f"plot_function: {plot_function}")  # Now plot_function should have a value
-            
-            # Conditional logic to handle form data based on plot_function
-            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate"]:
-                form_data_handlers = {
-                    "generate_plot": get_form_data_generate_plot,
-                    "generate_plot_combined": get_form_data_generate_plot,
-                    "generate_plot_separate": get_form_data_generate_plot,
-                }
-                form_data = form_data_handlers[plot_function](request.form)
-
-                # Store the form data with a unique identifier in Redis
-                unique_id = str(uuid.uuid4())
-                redis_client.set(unique_id, json.dumps({
-                    "database": database,
-                    "table_name": table_name,
-                    "plot_function": plot_function,
-                    "form_data": form_data
-                }))
-
-                new_url = f"/render-plot/{unique_id}"
-                return redirect(new_url)
-            else:
-                return jsonify({"error": "Invalid plot function selection"}), 400
-        else:
-            return jsonify({"error": "Plot function not selected"}), 400
-
-    else:  # GET request handling
-        print("GET:::::::::::::::::::::::::::::::::")
-        return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
-'''
-'''
-@app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
-def view_plot(database, table_name, plot_function):
-
-    if request.method == "POST":
-        print("POST:::::::::::::::::::::::::::::::::")
-        # Check if the user has made a plot function choice
-        plot_function_choice = request.form.get('plot_choice')
-        if plot_function_choice:
-            plot_function = plot_function_choice
-            if plot_function == "generate_plot_VCR":
-                return render_template('input_form_VCR.html', database=database, table_name=table_name, plot_function=plot_function)
-            elif plot_function == "generate_plot_TCR_separate":
-                return render_template('input_form_2.html', database=database, table_name=table_name, plot_function=plot_function)
-            elif plot_function == "generate_plot" or "generate_plot_combined" or "generate_plot_separate":
-                return render_template(f'input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)
-            elif plot_function == "generate_plot_64x64":
-                return render_template(f'input_form_date.html', database=database, table_name=table_name, plot_function=plot_function)
-            elif plot_function == "generate_plot_endurance":
-                return render_template(f'input_form_endurance.html', database=database, table_name=table_name, plot_function=plot_function)                
-            else:
-                return jsonify({"error": "choice not selected"}), 400
-
-        # Ensure plot_function has a value before proceeding
-        if plot_function:
-            print(f"plot_function: {plot_function}")  # Now plot_function should have a value
-            
-            # Conditional logic to handle form data based on plot_function
-            if plot_function in ["generate_plot", "generate_plot_combined", "generate_plot_separate", "generate_plot_64x64", "generate_plot_VCR", "generate_plot_TCR_separate", "generate_plot_endurance"]:
-                form_data_handlers = {
-                    "generate_plot": get_form_data_generate_plot,
-                    "generate_plot_combined": get_form_data_generate_plot,
-                    "generate_plot_separate": get_form_data_generate_plot,
-                    "generate_plot_64x64": get_form_data_generate_plot_64x64,
-                    "generate_plot_VCR": get_form_data_generate_plot_VCR,
-                    "generate_plot_TCR_separate": get_form_data_generate_plot_TCR_separate,
-                    "generate_plot_endurance": get_form_data_endurance,
-                }
-                form_data = form_data_handlers[plot_function](request.form)
-
-                # Store the form data with a unique identifier in Redis
-                unique_id = str(uuid.uuid4())
-                redis_client.set(unique_id, json.dumps({
-                    "database": database,
-                    "table_name": table_name,
-                    "plot_function": plot_function,
-                    "form_data": form_data
-                }))
-
-                new_url = f"/render-plot/{unique_id}"
-                return redirect(new_url)
-            else:
-                return jsonify({"error": "Invalid plot function selection"}), 400
-        else:
-            return jsonify({"error": "Plot function not selected"}), 400
-
-    else:  # GET request handling
-        print("GET:::::::::::::::::::::::::::::::::")
-        return render_template('choose_plot_function_form.html', database=database, table_name=table_name)
-'''
-'''
-@app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
-def view_plot(database, table_name, plot_function):
-
-    if request.method == "GET":
-        print("GET:::::::::::::::::::::::::::::::::")
-        return render_template(f'input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)
-    else:
-        #choose the plot_function
-        #plot_function = "generate_plot"
-        plot_function = "generate_plot_endurance"
-
-        form_data_handlers = {
-            "generate_plot": get_form_data_generate_plot,
-            "generate_plot_endurance": get_form_data_generate_plot,
-        }
-        form_data = form_data_handlers[plot_function](request.form)
-
-        # Store the form data with a unique identifier in Redis
-        unique_id = str(uuid.uuid4())
-        redis_client.set(unique_id, json.dumps({
-            "database": database,
-            "table_name": table_name,
-            "plot_function": plot_function,
-            "form_data": form_data
-        }))
-
-        new_url = f"/render-plot/{unique_id}"
-        return redirect(new_url)
-'''
+        return render_template('choose_plot_function_form.html')
 
 @app.route('/upload-file', methods=['POST'])
 def upload_file():
@@ -877,68 +407,6 @@ def upload_file():
 
     return jsonify(results=results)
 
-'''
-@app.route('/upload-file', methods=['POST'])
-def upload_file():
-    print("upload_file_ass")
-
-    db_name = request.form['db_name']
-    if not db_name:
-        return jsonify(error="No database selected"), 400
-
-    print(f"Using database: {db_name}")  # Log which database is being used
-    engine = create_db_engine(db_name)
-    print(f"Database engine URL: {engine.url}")  # Log the complete engine URL
-    
-    engine = create_db_engine(db_name)
-    files = [f for f in request.files.getlist('files[]') if f.filename]
-
-    if not files:
-        return jsonify(error="No files selected"), 400
-
-    results = []
-    for file in files:
-        filename = sanitize_table_name(file.filename)
-        file_extension = filename.rpartition('_')[-1]
-        print("file_extension:", file_extension)
-        print("reading the file")
-        file_stream = BytesIO(file.read())
-
-        try:
-            df = process_file(file_stream, file_extension, db_name)
-            if not df.empty:
-                print("not empty")
-                if file_extension == "npy":
-                    print("uploading npy")
-                    # Insert binary data into a BLOB column
-                    with engine.connect() as connection:
-                        # Create table
-                        sql_command = text(f"CREATE TABLE IF NOT EXISTS {filename} (id INT AUTO_INCREMENT PRIMARY KEY, binary_data LONGBLOB);")
-                        try:
-                            connection.execute(sql_command)
-                        except Exception as e:
-                            print("Error creating table:", e)
-                            return jsonify(error="Error creating table"), 500
-                        # Insert data
-                        for _, row in df.iterrows():
-                            binary_data = row['binary_data']
-                            query = text(f"INSERT INTO {filename} (binary_data) VALUES (:data)")
-                            connection.execute(query, data=binary_data)
-                    results.append(f"{filename} uploaded successfully")
-                else:
-                    print("uploading non npy")
-                    if df.shape[1] > 1017:
-                        df = df.transpose()
-                    df.to_sql(filename, engine, if_exists='replace', index=False)
-                    results.append(f"{filename} uploaded successfully")
-            else:
-                results.append(f"No data to upload for {filename}. Dataframe is empty.")
-        except Exception as e:
-            error_msg = f"Error processing {filename}: {str(e)}"
-            results.append(error_msg)
-
-    return jsonify(results=results)
-'''  
 @app.route('/delete-record/<database>/<table_name>', methods=['DELETE'])  # delete a table
 def delete_record(database, table_name):
     try:
@@ -975,53 +443,23 @@ def delete_records(database):
 
 @app.route('/create-database', methods=['POST'])
 def create_database():
-    user_name = request.form.get('userName')
-    db_name = request.form.get('newDatabaseName')
+    db_name = request.form.get('newDatabaseName')  #"newDatabaseName" passed from create_db_page.html
 
-    # Concatenate user name with database name
-    full_db_name = f"{user_name}_{db_name}" if user_name else db_name
-
-    if not full_db_name:
+    if not db_name:
         return jsonify({"error": "No database name provided"}), 400
-    success = create_db(full_db_name)  # Use the modified database name
-    if success:
-        return jsonify({"message": f"Database {full_db_name} created successfully"}), 200
+    
     else:
-        return jsonify({"error": "Failed to create database"}), 500
+        create_db(db_name)
+        return jsonify({"message": f"Database {db_name} created successfully"}), 200
 
 @app.route('/download_pptx', methods=['POST'])
 def download_pptx():
-      
-    #template_path = '/home/server/Desktop/device_testing_webapp2/pptx_template/template.pptx'  # Path to the template file
-    #template_path = '/home/ubuntu/webapp_2/pptx_template/template.pptx'  #Tetramem EC2 direcotry
     template_path = '/home/lenovoi7/Desktop/webapp_2/pptx_template/template.pptx'
 
     plots = request.json.get('plots', [])  # Retrieve the Base64 encoded images from the POST request
 
     prs = Presentation(template_path)  # Open the template PowerPoint file as the base for the new presentation
     
-    #aws s3 cp /home/server/Desktop/template.pptx s3://webapp20240318/template.pptx --region us-east-2
-
-    '''
-    # AWS S3 bucket name and key/path where the PowerPoint template is located
-    bucket_name = 'webapp20240318'
-    s3_key = 'template.pptx'
-    
-    # Initialize a boto3 S3 client securely
-    s3 = boto3.client('s3', aws_access_key_id='AKIAU62NNZW4ZJJAYZMX', aws_secret_access_key='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')
-    
-    # Create a BytesIO object to hold the template downloaded from S3
-    pptx_template_io = BytesIO()
-    
-    # Download the template from S3 directly into the BytesIO object
-    s3.download_fileobj(bucket_name, s3_key, pptx_template_io)
-    
-    # Go to the start of the BytesIO object to ensure it can be read correctly
-    pptx_template_io.seek(0)
-    
-    # Load the PowerPoint template
-    prs = Presentation(pptx_template_io)
-    '''
     # Retrieve the Base64 encoded images from the POST request
     plots = request.json.get('plots', [])
     
@@ -1071,20 +509,6 @@ def download_pptx():
     response.headers.set('Content-Disposition', 'attachment; filename="Downloaded_Presentation.pptx"')
     
     return response
-
-@app.route('/rename-database/<old_name>/<new_name>', methods=['PUT'])
-def rename_database_route(old_name, new_name):
-    try:
-        # Assuming you have a function rename_database in db_operations.py
-        # which handles the complex task of renaming a database.
-        success = rename_database(old_name, new_name)
-        if success:
-            return "Database renamed successfully!", 200
-        else:
-            return "Failed to rename database.", 400
-    except mysql.connector.Error as err:
-        print("Error occurred:", err)
-        return str(err), 500
 
 @app.route('/rename-table/<database>/<old_name>/<new_name>', methods=['PUT'])
 def rename_table(database, old_name, new_name):
@@ -1216,14 +640,3 @@ def list_items():
         return jsonify(items)
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/list-tables')
-def list_tables():
-    print("list_tables")
-    # Get databases from query parameters and split into list
-    databases = request.args.get('databases').split(',')
-    db_tables = {}
-    for db in databases:
-        db_tables[db] = fetch_tables(db)  # Fetch tables from each database
-
-    return render_template('list_tables_new.html', db_tables=db_tables, databases=databases)

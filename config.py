@@ -8,9 +8,6 @@ APP_SECRET_KEY = '1234'
 ENG = False
 #ENG = True
 
-#CHECk_DB is to enable autom mail notification
-CHECK_DB = True
-
 # Initialize DB_CONFIG
 DB_CONFIG = {}
 

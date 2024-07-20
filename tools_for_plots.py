@@ -876,7 +876,7 @@ def plot_ber_tables(ber_results, table_names):
     encoded_sigma_image, encoded_ppm_image, encoded_uS_image, encoded_additional_image = None, None, None, None
 
     # Plotting tables with improved adjustments
-    for data, title in [(sigma_data, "y Values at intersection"), (ppm_data, "BER PPM Values at intersection"), (uS_data, "BER PPM Values at windows = 2"), (additional_data, "y Values at windows = 2")]:
+    for data, title in [(sigma_data, "y Values at intersection"), (ppm_data, "BER PPM"), (uS_data, "BER PPM Values at windows = 2"), (additional_data, "y Values at windows = 2")]:
         fig, ax = plt.subplots(figsize=(15, 10))
         ax.axis('off')
         #plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)

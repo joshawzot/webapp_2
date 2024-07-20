@@ -14,52 +14,16 @@ def create_connection(database=None):
             database=database
         )
     return connection
-'''
-#can't use with "sudo systemctl restart auto_start_python", why?
-from mysql.connector import pooling
-# Initialize the connection pool using DB_CONFIG values
-connection_pool = mysql.connector.pooling.MySQLConnectionPool(
-    pool_name="mypool",
-    pool_size=10,  # Adjust this value based on your requirements
-    host=DB_CONFIG['DB_HOST'],
-    user=DB_CONFIG['DB_USER'],
-    password=DB_CONFIG['MYSQL_PASSWORD_RAW']  # Using encrypted password
-)
 
-def create_connection(database=None):
-    global connection_pool
-    try:
-        connection = connection_pool.get_connection()
-    except mysql.connector.errors.PoolError:
-        # The pool is exhausted; create a new connection
-        connection = mysql.connector.connect(
-            host=DB_CONFIG['DB_HOST'],
-            user=DB_CONFIG['DB_USER'],
-            password=DB_CONFIG['MYSQL_PASSWORD_RAW'],  # Using encrypted password
-            database=database
-        )
-    else:
-        if database is not None:
-            cursor = connection.cursor()
-            cursor.execute(f"USE {database};")
-            cursor.close()
-    return connection
-'''
 def create_db(db_name):
-    # Get a connection from the connection pool
     connection = create_connection()
     cursor = connection.cursor()
     try:
-        # Create database with the specified name
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name};")
         print(f"Database {db_name} created successfully.")
-        return True  # Indicate success
     except mysql.connector.Error as err:
-        # Handle errors in database creation
         print(f"Failed creating database: {err}")
-        return False  # Indicate failure
     finally:
-        # Close cursor and release connection back to the pool
         cursor.close()
         close_connection()
 

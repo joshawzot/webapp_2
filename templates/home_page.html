@@ -1,16 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Select Database{% endblock %}
-
 {% block content %}
 <div class="container">
-    <a href="/all-databases" class="btn btn-info mb-3">Create New Database</a>
+    <a href="/create-db" class="btn btn-info mb-3">Create New Database</a>
 
     <div class="border p-3 mb-4">
         <!-- Search input for filtering databases -->
         <input type="text" id="databaseFilter" class="form-control mb-3" placeholder="Filter databases...">
 
-        <form action="/data-analysis" method="post" id="databaseForm">
+        <form action="/list-tables" method="post" id="databaseForm">
             <fieldset class="form-group">
                 <!-- Databases will be listed here as clickable divs -->
                 <div id="databaseList">
@@ -34,7 +32,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         databaseOptions.forEach(function(option) {
             var dbName = option.getAttribute('data-db').toLowerCase().trim(); // Normalize database names
-            if (dbName.includes(filter)) {
+            if (dbName.startsWith(filter)) { // Use startsWith() instead of includes()
                 option.style.display = '';
             } else {
                 option.style.display = 'none';
