@@ -39,6 +39,8 @@ if __name__ == "__main__":  #in app.py, there is "app = Flask(__name__) "
     for thread in threads:
         thread.join()
 '''
+
+#To ensure complete isolation between different ports, you can use multiprocessing instead of threading. Each process will have its own memory space, which will help avoid interference.
 # run.py
 from multiprocessing import Process
 from werkzeug.serving import make_server  # can't use https yet, if want to use https, has to use server like Nginx or Apache

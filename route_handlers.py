@@ -48,8 +48,8 @@ from generate_plot_normal_combined import generate_plot_normal_combined
 from generate_plot_combined import generate_plot_combined
 from generate_plot_separate import generate_plot_separate
 
-'''from flask_caching import Cache
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})'''
+from flask_caching import Cache
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 @app.route('/create-db')
 def create_db_page():
@@ -143,7 +143,7 @@ generate_plot_functions = {
     "generate_plot_combined": generate_plot_combined,
     "generate_plot_separate": generate_plot_separate,
 }
-
+'''
 @app.route('/render-plot/<unique_id>')
 def render_plot(unique_id):
     data_type = "avg_std"
@@ -173,6 +173,61 @@ def render_plot(unique_id):
     try:
         plot_data = generate_plot_function(table_names, database, form_data)
         cache.set(cache_key, plot_data, timeout=None)
+        return render_template('plot.html', plot_data=plot_data)
+    except Exception as e:
+        return f"Error: {e}", 500
+'''
+'''
+@app.route('/render-plot/<database>/<table_name>/<plot_function>')
+def render_plot(database, table_name, plot_function):
+    data_type = "avg_std"
+    form_data_json = request.args.get('form_data')
+    
+    if not form_data_json:
+        return "Error: Form data not provided", 400
+
+    try:
+        form_data = json.loads(form_data_json)
+    except json.JSONDecodeError:
+        return "Error: Invalid form data", 400
+
+    generate_plot_function = generate_plot_functions.get(plot_function)
+    if generate_plot_function is None:
+        return "Error: Invalid plot function selection", 400
+
+    try:
+        table_names = table_name.split(',')
+        plot_data = generate_plot_function(table_names, database, form_data)
+        return render_template('plot.html', plot_data=plot_data)
+    except Exception as e:
+        return f"Error: {e}", 500
+'''
+@app.route('/render-plot/<database>/<table_name>/<plot_function>')
+def render_plot(database, table_name, plot_function):
+    form_data_json = request.args.get('form_data')
+    
+    if not form_data_json:
+        return "Error: Form data not provided", 400
+
+    try:
+        form_data = json.loads(form_data_json)
+    except json.JSONDecodeError:
+        return "Error: Invalid form data", 400
+
+    cache_key = f"{database}_{table_name}_{plot_function}_{form_data_json}"
+    cached_plot_data = cache.get(cache_key)
+
+    if cached_plot_data:
+        return render_template('plot.html', plot_data=cached_plot_data)
+
+    generate_plot_function = generate_plot_functions.get(plot_function)
+    if generate_plot_function is None:
+        return "Error: Invalid plot function selection", 400
+
+    try:
+        table_names = table_name.split(',')
+        plot_data = generate_plot_function(table_names, database, form_data)
+        cache.set(cache_key, plot_data, timeout=3600)  # Cache for 1 hour
         return render_template('plot.html', plot_data=plot_data)
     except Exception as e:
         return f"Error: {e}", 500
@@ -307,7 +362,7 @@ def fetch_all_numeric_data(table_name, database_name):
         connection.close()
 
     return data, data_dimension
-
+'''
 @app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
 def view_plot(database, table_name, plot_function):
     print("view_plot")
@@ -355,6 +410,37 @@ def view_plot(database, table_name, plot_function):
     else:  # GET request handling
         #print('fuck')
         #print(len(table_names))
+        table_names = table_name.split(',')
+        print(table_names)
+        print("GET:::::::::::::::::::::::::::::::::")
+        return render_template('choose_plot_function_form.html')
+'''
+
+@app.route('/view-plot/<database>/<table_name>/<plot_function>', methods=['GET', 'POST'])
+def view_plot(database, table_name, plot_function):
+    print("view_plot")
+    if request.method == "POST":
+        print("POST:::::::::::::::::::::::::::::::::")
+        plot_function_choice = request.form.get('plot_choice')
+        if plot_function_choice:
+            plot_function = plot_function_choice
+            if plot_function in generate_plot_functions:
+                return render_template('input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)             
+            else:
+                return jsonify({"error": "Invalid plot function selection"}), 400
+
+        if plot_function:
+            print(f"plot_function: {plot_function}")
+            if plot_function in generate_plot_functions:
+                form_data = get_form_data_generate_plot(request.form)
+                form_data_json = json.dumps(form_data)
+
+                return redirect(f"/render-plot/{database}/{table_name}/{plot_function}?form_data={form_data_json}")
+            else:
+                return jsonify({"error": "Invalid plot function selection"}), 400
+        else:
+            return jsonify({"error": "Plot function not selected"}), 400
+    else:
         table_names = table_name.split(',')
         print(table_names)
         print("GET:::::::::::::::::::::::::::::::::")
@@ -446,11 +532,13 @@ def create_database():
     db_name = request.form.get('newDatabaseName')  #"newDatabaseName" passed from create_db_page.html
 
     if not db_name:
-        return jsonify({"error": "No database name provided"}), 400
+        #return jsonify({"error": "No database name provided"}), 400
+        return "No Folder name provided", 400
     
     else:
         create_db(db_name)
-        return jsonify({"message": f"Database {db_name} created successfully"}), 200
+        #return jsonify({"message": f"Database {db_name} created successfully"}), 400
+        return f"Folder {db_name} created successfully", 400
 
 @app.route('/download_pptx', methods=['POST'])
 def download_pptx():
