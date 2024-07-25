@@ -82,8 +82,8 @@ def generate_plot(table_names, database_name, form_data):
         # Generate tables for visualizing BER results
         encoded_sigma_image, encoded_ppm_image, encoded_2uS_image, extra_image= plot_ber_tables(ber_results, table_names)
         #encoded_plots.append(encoded_sigma_image)
-        encoded_plots.append(encoded_ppm_image)
+        #encoded_plots.append(encoded_ppm_image)
         #encoded_plots.append(extra_image)
-        #encoded_plots.append(encoded_2uS_image)
+        encoded_plots.append(encoded_2uS_image)
 
     return encoded_plots

@@ -65,6 +65,10 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
     global_x_max = float('-inf')
     ber_results = []
 
+    # Create separate figures for sigma and CDF plots with specified size
+    fig_sigma, ax_sigma = plt.subplots(figsize=figsize)
+    fig_cdf, ax_cdf = plt.subplots(figsize=figsize)
+
     for i, group_data in enumerate(data):
         if len(group_data) == 0:
             continue
@@ -80,25 +84,50 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
         #if label:
             #added_to_legend.add(label)
         
-        #plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)], label=label)
-        plt.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)])
-        plt.scatter(sorted_data, sigma_values, s=10, color=colors[i % len(colors)])
+        #Plot Sigma values
+        #ax_sigma.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i % len(colors)], label=label)
+        ax_sigma.plot(sorted_data, sigma_values, linestyle='-', linewidth=1, color=colors[i])
+        ax_sigma.scatter(sorted_data, sigma_values, s=10, color=colors[i])
+
+        # Plot CDF values
+        ax_cdf.plot(sorted_data, cdf_values, linestyle='-', linewidth=1, color=colors[i])
+        ax_cdf.scatter(sorted_data, cdf_values, s=10, color=colors[i])
 
         transformed_data_groups.append((sorted_data, sigma_values))
 
-    plt.xlim(global_x_min, global_x_max)
-    #plt.xlabel('Transformed Data Value', fontsize=12)
-    plt.ylabel('Sigma (Standard deviations)', fontsize=12)
-    #plt.title('Transformed CDF of Data by Groups')
-    plt.legend()
-    plt.grid(True)
+    # Sigma plot settings
+    #ax_sigma.xlim(global_x_min, global_x_max)
+    #ax_sigma.set_title('Sigma Plot of Transformed Data by Groups')
+    #ax_sigma.set_yscale('log')
+    #ax_sigma.legend()
+    ax_sigma.grid(True)
 
-    buf_transformed_cdf = BytesIO()
-    plt.savefig(buf_transformed_cdf, format='png', bbox_inches='tight')
-    buf_transformed_cdf.seek(0)
-    plot_data_transformed_cdf = base64.b64encode(buf_transformed_cdf.getvalue()).decode('utf-8')
-    buf_transformed_cdf.close()
-    plt.clf()
+    # CDF plot settings
+    #ax_cdf.xlim(global_x_min, global_x_max)
+    #ax_cdf.set_title('CDF Plot of Transformed Data by Groups')
+    ax_cdf.set_yscale('log')
+    #ax_cdf.legend()
+    ax_cdf.grid(True)
+    # Set fixed x-axis limits for CDF plot
+    #ax_cdf.set_xlim(0, 200)  # Setting x-axis minimum to 0 and maximum to 200
+    
+    # Save sigma plot
+    buf_sigma = BytesIO()
+    fig_sigma.savefig(buf_sigma, format='png', bbox_inches='tight')
+    buf_sigma.seek(0)
+    plot_data_sigma = base64.b64encode(buf_sigma.getvalue()).decode('utf-8')
+    buf_sigma.close()
+
+    # Save CDF plot
+    buf_cdf = BytesIO()
+    fig_cdf.savefig(buf_cdf, format='png', bbox_inches='tight')
+    buf_cdf.seek(0)
+    plot_data_cdf = base64.b64encode(buf_cdf.getvalue()).decode('utf-8')
+    buf_cdf.close()
+
+    # Clear the figures after saving
+    plt.close(fig_sigma)
+    plt.close(fig_cdf)
 
     # Begin second plot for interpolation
     plt.figure(figsize=figsize)
@@ -187,8 +216,8 @@ def plot_transformed_cdf_3(data, group_names, selected_groups, colors, figsize=(
     buf_interpolated_cdf.close()
 
     #return plot_data_transformed_cdf, plot_data_interpo, intersections
-    print("horizontal_line_y_value:", horizontal_line_y_value)
-    return plot_data_transformed_cdf, plot_data_interpo, intersections, horizontal_line_y_value
+    #print("horizontal_line_y_value:", horizontal_line_y_value)
+    return plot_data_sigma, plot_data_cdf, plot_data_interpo, intersections, horizontal_line_y_value
 
 def plot_boxplot_2(data, group_names, figsize=(15, 10)):
     plt.figure(figsize=figsize) 
@@ -367,7 +396,7 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     # If colors were specifically tailored for table_names, you may need to redefine colors:
     colors = get_colors(len(group_data))  # Assuming get_colors() generates a sufficient number of colors
     # Adjusted function call
-    plot_data_original, plot_data_interpo, intersections, horizontal_line_y_value = plot_transformed_cdf_3(all_groups, group_names, selected_groups, colors)
+    plot_data_sigma, plot_data_cdf, plot_data_interpo, intersections, horizontal_line_y_value = plot_transformed_cdf_3(all_groups, group_names, selected_groups, colors)
     #plot_data_sigma, plot_data_cdf, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
     print("intersections:", intersections)
     print("horizontal_line_y_value:", horizontal_line_y_value)
@@ -378,14 +407,15 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     print("ppm:", ppm)
     print("A")
     table = plot_2uS_table(ppm, selected_groups)
-    '''encoded_plots.append(table)'''
+    encoded_plots.append(table)
     # Adding plots to the encoded_plots list
-    encoded_plots.append(plot_data_original)
+    encoded_plots.append(plot_data_sigma)
+    encoded_plots.append(plot_data_cdf)
     '''encoded_plots.append(plot_data_interpo)'''
     print("B")
-    encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(intersections)
+    '''encoded_sigma_image, encoded_ppm_image = plot_ber_tables_2(intersections)'''
     '''encoded_plots.append(encoded_sigma_image)'''
-    encoded_plots.append(encoded_ppm_image)
+    '''encoded_plots.append(encoded_ppm_image)'''
     print("C")
     '''normalized_groups, index_to_element = normalize_selected_groups(selected_groups)
     print("normalized_groups:", normalized_groups)

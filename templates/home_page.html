@@ -2,11 +2,11 @@
 
 {% block content %}
 <div class="container">
-    <a href="/create-db" class="btn btn-info mb-3">Create New Database</a>
+    <a href="/create-db" class="btn btn-info mb-3">Create New Folder</a>
 
     <div class="border p-3 mb-4">
         <!-- Search input for filtering databases -->
-        <input type="text" id="databaseFilter" class="form-control mb-3" placeholder="Filter databases...">
+        <input type="text" id="databaseFilter" class="form-control mb-3" placeholder="Filter folder names...">
 
         <form action="/list-tables" method="post" id="databaseForm">
             <fieldset class="form-group">

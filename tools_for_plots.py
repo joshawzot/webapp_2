@@ -893,7 +893,7 @@ def plot_ber_tables(ber_results, table_names):
         
         if title == "y Values at intersection":
             encoded_sigma_image = encoded_image
-        elif title == "BER PPM Values at intersection":
+        elif title == "BER PPM":
             encoded_ppm_image = encoded_image
         elif title == "BER PPM Values at windows = 2":
             encoded_uS_image = encoded_image
