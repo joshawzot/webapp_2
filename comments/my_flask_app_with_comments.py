@@ -8,7 +8,7 @@ from config import DB_CONFIG, APP_SECRET_KEY # must have
 
 import redis
 import json
-from flask import Flask, request, jsonify, render_template, redirect
+from flask import Flask, request, render_template, redirect
 import uuid
 import random
 

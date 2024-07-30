@@ -402,12 +402,13 @@ def generate_plot_normal_combined(table_names, database_name, form_data):
     print("horizontal_line_y_value:", horizontal_line_y_value)
     print("selected_groups:", selected_groups)
 
-    tail_probability = sp_stats.norm.sf([abs(y) for y in horizontal_line_y_value])
-    ppm = tail_probability * 1_000_000
-    print("ppm:", ppm)
-    print("A")
-    table = plot_2uS_table(ppm, selected_groups)
-    encoded_plots.append(table)
+    if len(selected_groups) != 1:
+        tail_probability = sp_stats.norm.sf([abs(y) for y in horizontal_line_y_value])
+        ppm = tail_probability * 1_000_000
+        print("ppm:", ppm)
+        print("A")
+        table = plot_2uS_table(ppm, selected_groups)
+        encoded_plots.append(table)
     # Adding plots to the encoded_plots list
     encoded_plots.append(plot_data_sigma)
     encoded_plots.append(plot_data_cdf)

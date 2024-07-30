@@ -73,12 +73,12 @@ def generate_plot(table_names, database_name, form_data):
     encoded_plots.append(plot_average_values_table(avg_values, table_names, selected_groups))
     encoded_plots.append(plot_std_values_table(std_values, table_names, selected_groups))
 
-    if len(selected_groups) != 1:
-        plot_data_sigma, plot_data_cdf, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
-        encoded_plots.append(plot_data_sigma)
-        encoded_plots.append(plot_data_cdf)
-        #encoded_plots.append(plot_data_interpo)
+    plot_data_sigma, plot_data_cdf, plot_data_interpo, ber_results = plot_transformed_cdf_2(group_data, table_names, selected_groups, colors)
+    encoded_plots.append(plot_data_sigma)
+    encoded_plots.append(plot_data_cdf)
+    #encoded_plots.append(plot_data_interpo)
 
+    if len(selected_groups) != 1:
         # Generate tables for visualizing BER results
         encoded_sigma_image, encoded_ppm_image, encoded_2uS_image, extra_image= plot_ber_tables(ber_results, table_names)
         #encoded_plots.append(encoded_sigma_image)

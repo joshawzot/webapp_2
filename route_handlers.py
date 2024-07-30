@@ -5,7 +5,7 @@ from db_operations import *
 from config import *
 from utilities import *
 # my_flask_app.py
-from flask import Flask, request, jsonify, render_template, redirect
+from flask import Flask, jsonify, request, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from flask_apscheduler import APScheduler
@@ -30,7 +30,7 @@ import pandas as pd
 import requests
 import boto3
 import mysql.connector
-from flask import Flask, request, jsonify, make_response, redirect, url_for, session, flash, send_file, render_template, render_template_string
+from flask import Flask, request, make_response, redirect, url_for, session, flash, send_file, render_template, render_template_string
 from werkzeug.security import check_password_hash, generate_password_hash
 from pptx import Presentation
 from pptx.util import Inches
@@ -427,7 +427,7 @@ def view_plot(database, table_name, plot_function):
             if plot_function in generate_plot_functions:
                 return render_template('input_form_generate_plot.html', database=database, table_name=table_name, plot_function=plot_function)             
             else:
-                return jsonify({"error": "Invalid plot function selection"}), 400
+                return f"Invalid plot function selection", 400
 
         if plot_function:
             print(f"plot_function: {plot_function}")
@@ -437,9 +437,9 @@ def view_plot(database, table_name, plot_function):
 
                 return redirect(f"/render-plot/{database}/{table_name}/{plot_function}?form_data={form_data_json}")
             else:
-                return jsonify({"error": "Invalid plot function selection"}), 400
+                return f"Invalid plot function selection", 400
         else:
-            return jsonify({"error": "Plot function not selected"}), 400
+            return f"Plot function not selected", 400
     else:
         table_names = table_name.split(',')
         print(table_names)
@@ -450,16 +450,16 @@ def view_plot(database, table_name, plot_function):
 def upload_file():
     print("upload_file()")
     if 'db_name' not in request.form:
-        return jsonify(error="No database selected"), 400
+        return f"No database selected", 400
 
     if 'files[]' not in request.files:
         print("No files part in request.files")  # Log missing files part
-        return jsonify(error="No files part in the request"), 400
+        return f"No files part in the request", 400
 
     files = [f for f in request.files.getlist('files[]') if f.filename]
     if not files:
         print("No files detected")  # Log no files detected
-        return jsonify(error="No files detected"), 400
+        return f"No files detected", 400
 
     for file in files:
         print(f"File: {file.filename}, MIME Type: {file.mimetype}")
@@ -467,7 +467,7 @@ def upload_file():
     print(files)
 
     if not files:
-        return jsonify(error="No files selected"), 400
+        return f"No files selected", 400
     db_name = request.form['db_name']
     engine = create_db_engine(db_name)
 
@@ -532,12 +532,10 @@ def create_database():
     db_name = request.form.get('newDatabaseName')  #"newDatabaseName" passed from create_db_page.html
 
     if not db_name:
-        #return jsonify({"error": "No database name provided"}), 400
         return "No Folder name provided", 400
     
     else:
         create_db(db_name)
-        #return jsonify({"message": f"Database {db_name} created successfully"}), 400
         return f"Folder {db_name} created successfully", 400
 
 @app.route('/download_pptx', methods=['POST'])
