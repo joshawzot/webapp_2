@@ -726,3 +726,23 @@ def list_items():
         return jsonify(items)
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/generate_zip', methods=['POST'])
+def generate_zip():
+    data = request.get_json()
+    table_names = data.get('tableNames', [])
+
+    if not table_names:
+        return 'No tables selected', 400
+
+    # Create a ZIP file in memory
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for table_name in table_names:
+            # Generate CSV content for each table (replace with your logic)
+            df = pd.read_csv(f'data/{table_name}.csv')  # Replace with your actual data source
+            csv_content = df.to_csv(index=False)
+            zf.writestr(f'{table_name}.csv', csv_content)
+
+    memory_file.seek(0)
+    return send_file(memory_file, attachment_filename='tables.zip', as_attachment=True)

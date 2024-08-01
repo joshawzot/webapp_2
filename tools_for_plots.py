@@ -642,7 +642,7 @@ def plot_std_values_table(std_values, table_names, selected_groups, figsize=(15,
     return encoded_image
 
 def plot_colormap(data, title, figsize=(30, 15)):
-    # Set minimum value to 0 and maximum value to the largest value in the data scaled by 1e6
+    # Set minimum value to 0 and maximum value to the largest value in the data
     g_range = [0, np.max(data)]
     
     fig, ax = plt.subplots(figsize=figsize)

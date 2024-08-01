@@ -1,5 +1,5 @@
 # my_flask_app.py
-from flask import Flask, request, jsonify, render_template, redirect
+from flask import Flask, request, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from flask_apscheduler import APScheduler

@@ -48,6 +48,37 @@
 </div>
 
 <script>
+    // document.getElementById('downloadSelected').addEventListener('click', function() {
+    //     const checkboxes = document.querySelectorAll('.table-checkbox:checked');
+    //     let tableNames = [];
+        
+    //     checkboxes.forEach(function(checkbox) {
+    //         tableNames.push(checkbox.getAttribute('data-table-name'));
+    //     });
+
+    //     if (tableNames.length > 0) {
+    //         tableNames.forEach(function(tableName, index) {
+    //             // Delay calculation: 100 milliseconds (0.1 seconds) multiplied by the index
+    //             const delay = index * 1000; 
+
+    //             setTimeout(function() {
+    //                 // Dynamically create a link and click it
+    //                 const link = document.createElement('a');
+    //                 link.href = `/download_csv?database={{ database }}&table_name=${tableName}`;
+    //                 link.download = `${tableName}.csv`;  // This suggests a filename but may not work as expected for all server configurations
+    //                 document.body.appendChild(link);
+    //                 link.click();
+    //                 document.body.removeChild(link);
+    //             }, delay);
+    //         });
+    //     } else {
+    //         alert('Please select at least one table to download.');
+    //     }
+    // });
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+<script>
     document.getElementById('downloadSelected').addEventListener('click', function() {
         const checkboxes = document.querySelectorAll('.table-checkbox:checked');
         let tableNames = [];
@@ -57,15 +88,32 @@
         });
 
         if (tableNames.length > 0) {
-            tableNames.forEach(function(tableName) {
-                // Dynamically create a link and click it
-                const link = document.createElement('a');
-                link.href = `/download_csv?database={{ database }}&table_name=${tableName}`;
-                link.download = `${tableName}.csv`;  // This suggests a filename but may not work as expected for all server configurations
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            const zip = new JSZip();
+
+            let tableFetches = tableNames.map((tableName) => {
+                return fetch(`/download_csv?database={{ database }}&table_name=${tableName}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        zip.file(`${tableName}.csv`, data);
+                    });
             });
+
+            Promise.all(tableFetches)
+                .then(() => {
+                    zip.generateAsync({ type: "blob" })
+                        .then(function(content) {
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(content);
+                            link.download = 'tables.zip';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while generating the zip file.');
+                });
         } else {
             alert('Please select at least one table to download.');
         }

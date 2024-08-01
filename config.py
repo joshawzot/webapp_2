@@ -15,7 +15,7 @@ DB_CONFIG = {}
 DB_CONFIG['RDS_PORT'] = None  # Implicitly defaults to 3306
 DB_CONFIG['DB_HOST'] = "localhost"
 DB_CONFIG['DB_USER'] = "root"
-DB_CONFIG['MYSQL_PASSWORD_RAW'] = ''
+DB_CONFIG['MYSQL_PASSWORD_RAW'] = 'new_password'
 
 #for remote user on other machine
 '''DB_CONFIG['RDS_PORT'] = 3306  # Implicitly defaults to 3306
